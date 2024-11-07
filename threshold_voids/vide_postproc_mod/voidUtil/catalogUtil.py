@@ -23,7 +23,7 @@
 import numpy as np
 from netCDF4 import Dataset
 import sys
-from vide.backend import *
+from ..backend import *
 #import vide.apTools as vp
 import pickle
 from .periodic_kdtree import PeriodicCKDTree

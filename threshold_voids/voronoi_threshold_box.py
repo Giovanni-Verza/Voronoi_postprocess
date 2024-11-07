@@ -5,9 +5,7 @@ from scipy.spatial import Delaunay
 try:
     import vide.voidUtil as vu
 except:
-    analysis_functions_dir = '/home/giovanni/Desktop/VSF_forcasts/Roman/vfs_analysis_func'
-    sys.path.append(os.path.dirname(os.path.expanduser(analysis_functions_dir)))
-    import vfs_analysis_func.vide_postproc_mod as vu
+    import vide_postproc_mod as vu
 
 #to reactivate interctive matplotlib mode after having imported vide utils:
 
@@ -72,15 +70,22 @@ def single_void_computation(threshold,VoroXYZ,VoroVol,BoxLen,MeanBoxDens):
 
             Ncells += 1
             Condition = (Dens <= threshold) & (Ncells < numPart)
-    if Ncells < numPart:
-        delta_Vol = VoroVol[IDthresholds[Ncells-2]]
-        delta_dens = Dens - (Ncells-2) / (VolTot-delta_Vol) / MeanBoxDens
-        Vinterp = delta_Vol / delta_dens * (threshold - Dens) + VolTot
-        Rinterp = (Vinterp * 3. / (4.*np.pi)) ** (1/3)
-    else:
+    Ncells -= 1
+    if Ncells <= 1:
         Rinterp = -1.
         Vinterp = 0. 
-    return Rinterp, Vinterp
+        Dens_previous = -1.
+        VolPrevious = 0.
+    else: #  Ncells < numPart:
+        delta_Vol = VoroVol[IDthresholds[Ncells-1]]
+        VolPrevious = VolTot-delta_Vol
+        Dens_previous = (Ncells-1) / VolPrevious / MeanBoxDens
+        delta_dens = Dens - Dens_previous
+        #delta_dens = Dens - (Ncells-1) / (VolTot-delta_Vol) / MeanBoxDens
+        Vinterp = delta_Vol / delta_dens * (threshold - Dens) + VolTot
+        Rinterp = (Vinterp * 3. / (4.*np.pi)) ** (1/3)
+
+    return Rinterp, Vinterp, Ncells, Dens, (VolTot * 3. / (4.*np.pi)) ** (1/3), VolTot, Dens_previous, (VolPrevious * 3. / (4.*np.pi)) ** (1/3), VolPrevious
 
 
 
@@ -93,19 +98,25 @@ def voronoi_threhosld_box_videcat(threshold,path_to_test,dataPortion="all",untri
     print('box info:','\n    nvoids:',catalog.numVoids,'\n    num part:',catalog.numPartTot,
         '\n    box len',catalog.boxLen,'\n    vol norm:',catalog.volNorm,'\n    fake density:',catalog.sampleInfo.fakeDensity)
 
-    Reff = vu.getArray(catalog.voids,'radius')
     MeanBoxDens = catalog.volNorm
     BoxLen = catalog.boxLen
     Rinterp = np.empty(catalog.numVoids)
     Vinterp = np.empty(catalog.numVoids)
+    Ncells = np.empty(catalog.numVoids,dtype=np.int_)
+    Dens_out = np.empty(catalog.numVoids)
+    Rout = np.empty(catalog.numVoids)
+    Vout = np.empty(catalog.numVoids)
+    Dens_in = np.empty(catalog.numVoids)
+    Rin = np.empty(catalog.numVoids)
+    Vin = np.empty(catalog.numVoids)
     for ivd in range(catalog.numVoids):
         print(ivd+1,'/',catalog.numVoids)
         voidPart = vu.getVoidPart(catalog, catalog.voids[ivd].voidID)
         VoroVol = vu.getArray(voidPart,'volume')
         VoroXYZ = np.array([vu.getArray(voidPart,'x'),vu.getArray(voidPart,'y'),vu.getArray(voidPart,'z')]).T
 
-        Rinterp[ivd], Vinterp[ivd] = single_void_computation(threshold,VoroXYZ,VoroVol,BoxLen,MeanBoxDens)
-    return Rinterp, Vinterp
+        Rinterp[ivd], Vinterp[ivd], Ncells[ivd], Dens_out[ivd], Rout[ivd], Vout[ivd], Dens_in[ivd], Rin[ivd], Vin[ivd] = single_void_computation(threshold,VoroXYZ,VoroVol,BoxLen,MeanBoxDens)
+    return Rinterp, Vinterp, Ncells, Dens_out, Rout, Vout, Dens_in, Rin, Vin
 
 
 
