@@ -313,6 +313,25 @@ def overlapping_fraction(
 @jit(nopython=True)
 def select_overlaps(frac_threshold,id_selected, ids_ovlp, Vol_ovlp_frac, num_ovlps):
     Ntot = id_selected.shape[0]
+    id_out = np.arange(Ntot)
+    ind = 0
+    while ind < Ntot:
+        iv_ref = id_selected[id_out[ind]]
+        for j in range(num_ovlps[iv_ref]):
+            iv_ovlp = ids_ovlp[iv_ref,j]
+            if (Vol_ovlp_frac[iv_ref,j] > frac_threshold):
+                ii = 0
+                while (id_selected[id_out[ii]] != iv_ovlp) & (ii < Ntot):
+                    ii += 1
+                id_out[ii:-1] = id_out[ii+1:]
+                Ntot -= 1
+        ind += 1
+    return id_out[:Ntot]
+
+
+@jit(nopython=True)
+def select_overlaps_explicit(frac_threshold,id_selected, ids_ovlp, Vol_ovlp_frac, num_ovlps):
+    Ntot = id_selected.shape[0]
     id_out = np.copy(id_selected)
     ind = 0
     while ind < Ntot:
