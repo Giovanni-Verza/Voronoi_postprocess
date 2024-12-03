@@ -1,0 +1,28 @@
+[project]
+name = "vorothreshold"
+version = "0.0.1"
+description = "void profiles quantities"
+authors = [
+    { name = "Giovanni Verza", email = "gverza@flatironinstitute.org" }
+]
+#readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "numba",
+]
+
+#[project.license]
+#file = "LICENSE"
+
+[build-system]
+requires = ["setuptools"]
+build-backend="setuptools.build_meta"
+
+
+#[tool.setuptools.packages.find]
+#where = ["python"]

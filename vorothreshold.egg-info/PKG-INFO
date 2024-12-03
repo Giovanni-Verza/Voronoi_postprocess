@@ -1,0 +1,10 @@
+Metadata-Version: 2.1
+Name: vorothreshold
+Version: 0.0.1
+Summary: void profiles quantities
+Author-email: Giovanni Verza <gverza@flatironinstitute.org>
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Requires-Dist: numpy
+Requires-Dist: numba
