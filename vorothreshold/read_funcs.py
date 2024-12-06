@@ -2,65 +2,13 @@
 import numpy as np
 import struct
 from netCDF4 import Dataset
+from numba import jit
 #from typing import List
 
 
 __all__ = ['read_voronoi_vide','read_voronoi_vide', 'voro_in_vide_voids', 'vide_voids_cat']
-'''
-class Particle:
-    def __init__(self):
-        self.dens = 0.0
-        self.nadj = 0
-        self.ncnt = 0
-        self.adj = []
 
-def read_adjfile_old(adjfile):
-    with open(adjfile, "rb") as adj:
-        np = struct.unpack('i', adj.read(4))[0]  # Read number of particles
-        mockIndex = np 
-        print(f"adj: {np} particles")
-
-        particles = [Particle() for _ in range(np)]
-
-        # Read adjacency data
-        for i in range(np):
-            particles[i].nadj = struct.unpack('i', adj.read(4))[0]
-            particles[i].adj = [0] * particles[i].nadj if particles[i].nadj > 0 else []
-            particles[i].ncnt = 0  # Initialize adjacency counter
-
-        for i in range(np):
-            nin = struct.unpack('i', adj.read(4))[0]
-            if nin > 0:
-                for _ in range(nin):
-                    j = struct.unpack('i', adj.read(4))[0]
-                    if j < np:
-                        assert i < j
-                        if particles[i].ncnt == particles[i].nadj:
-                            print(f"OVERFLOW for particle {i} (pending {j}). List of accepted:")
-                            for q in range(particles[i].nadj):
-                                print(f"  {particles[i].adj[q]}")
-                        if particles[j].ncnt == particles[j].nadj:
-                            print(f"OVERFLOW for particle {j} (pending {i}). List of accepted:")
-                            for q in range(particles[j].nadj):
-                                print(f"  {particles[j].adj[q]}")
-                        particles[i].adj[particles[i].ncnt] = j
-                        particles[j].adj[particles[j].ncnt] = i
-                        particles[i].ncnt += 1
-                        particles[j].ncnt += 1
-                    else:
-                        print(f"{i}: adj = {j}")
-
-        # Verify adjacency pairs
-        #for i in range(np):
-        #    if particles[i].ncnt != particles[i].nadj and i < mockIndex:
-        #        particles[i].nadj = particles[i].ncnt
-        #        print(f"We didn't get all of {i}'s adj's; {nin} != {particles[i].nadj}.")
-    return particles
-
-'''
-
-
-def read_adjfile(adjfile):
+def read_adjfile_slow(adjfile):
     with open(adjfile, "rb") as adj:
         Npart = struct.unpack('i', adj.read(4))[0]  # Read number of particles
         
@@ -89,6 +37,51 @@ def read_adjfile(adjfile):
                 
     # Ids of vertices adjacent to vertex i: neighbor_ids[neighbor_ptr[i]:neighbor_ptr[i+1]]
     return neighbor_ptr, neighbor_ids
+
+@jit(nopython=True)
+def read_adjfile_inner_loop(Npart,neighbor_ptr,neighbor_ids,raw_data):
+    #neighbor_ids = np.empty(neighbor_ptr[-1], dtype=np.int_)
+
+    neighbor_counter = np.zeros(Npart, dtype=np.int_)
+    index = 0
+    for i in range(Npart):
+        num_neighbors = raw_data[index]
+        index += 1
+        for _ in range(num_neighbors):
+            j = raw_data[index]
+            neighbor_ids[neighbor_ptr[i] + neighbor_counter[i]] = j
+            neighbor_ids[neighbor_ptr[j] + neighbor_counter[j]] = i
+            neighbor_counter[i] += 1
+            neighbor_counter[j] += 1
+            index += 1
+    
+
+def read_adjfile(adjfile):
+    with open(adjfile, "rb") as adj:
+        # Read the total number of particles
+        Npart = struct.unpack('i', adj.read(4))[0]
+        
+        # Read all adjacency sizes in one go
+        adj_sizes = np.frombuffer(adj.read(4 * Npart), dtype=np.int32)
+        
+        # Compute neighbor_ptr
+        neighbor_ptr = np.zeros(Npart + 1, dtype=np.int_)
+        np.cumsum(adj_sizes, out=neighbor_ptr[1:])
+        
+        # Total number of neighbors
+        total_neighbors = neighbor_ptr[-1]
+        
+        # Pre-allocate neighbor_ids
+        neighbor_ids = np.empty(total_neighbors, dtype=np.int_)
+
+        data = adj.read(total_neighbors * 4)
+        
+        # Read all neighbors' IDs in bulk
+        raw_data = np.frombuffer(data, dtype=np.int32)
+
+        read_adjfile_inner_loop(Npart,neighbor_ptr,neighbor_ids,raw_data)
+    return neighbor_ptr, neighbor_ids
+        
 
 
 def read_voronoi_vide(vide_out,fullName):
@@ -254,18 +247,38 @@ class voro_in_vide_voids:
 
 
 
-def vide_voids_cat(vide_out_dir,fullName,dataPortion='all',untrimmed=True,as_dict=False,values_out=None):
+def vide_voids_cat(vide_out_dir,fullName,dataPortion='all',untrimmed=True,as_dict=True,values_out=None):
     if untrimmed:
         prefix = "untrimmed_"
     else:
         prefix = ""
-    keys_all = ['barycenter','volume_norm','radius','redshift','volume','voidID','dens_contr','num_part',
-                'parent_ID','tree_level','num_children','central_dens','RA','DEC',
-                'coreID','core_dens','core_pos','RAcore','DECcore','redshift_core']
+    keys_center = ['barycenter','volume_norm','radius','redshift','volume','voidID','dens_contr','num_part',
+                'parent_ID','tree_level','num_children','central_dens']
+    keys_sky = ['RA','DEC']
+    keys_desc = ['file_void','core_ID','core_dens','zone_vol','zone_part', 'void_zone', 'void_prob']
+    keys_core = ['core_pos','RAcore','DECcore','redshift_core']
+    keys_shape = ['ellip','eigenvalues','eigenvec1','eigenvec2','eigenvec3']
+    keys_info = ['num_part_tot']
+    # void ID, ellip, eig(1), eig(2), eig(3), eigv(1)-x, eiv(1)-y, eigv(1)-z, eigv(2)-x, eigv(2)-y, eigv(2)-z, eigv(3)-x, eigv(3)-y, eigv(3)-z
+    keys_all = keys_center + keys_sky + keys_desc + keys_core + keys_shape + keys_info
+    #keys_all = ['barycenter','volume_norm','radius','redshift','volume','voidID','dens_contr','num_part',
+    #            'parent_ID','tree_level','num_children','central_dens','RA','DEC',
+    #            'coreID','core_dens','core_pos','RAcore','DECcore','redshift_core']
     
+    do_center = False
+    do_sky = False
+    do_desc = False
+    do_core = False
+    do_shape = False
+    do_info = False
     if values_out is None:
         selected_output = False
+        do_center = True
+        do_sky = True
+        do_desc = True
         do_core = True
+        do_shape = True
+        do_info = True
     else:
         selected_output = True
         do_core = False
@@ -279,89 +292,115 @@ def vide_voids_cat(vide_out_dir,fullName,dataPortion='all',untrimmed=True,as_dic
                 
                 raise ValueError(kk + ' key unknown. available keys: '+all_k_str[:-2])
             
-        for kk in ['core_pos','RAcore','DECcore','redshift_core']:
+        for kk in keys_center:
+            if kk in values_out:
+                do_center = True
+                break
+        for kk in keys_sky:
+            if kk in values_out:
+                do_sky = True
+                break
+        for kk in keys_desc:
+            if kk in values_out:
+                do_desc = True
+                break
+        for kk in keys_core:
             if kk in values_out:
                 do_core = True
                 break
+        for kk in keys_shape:
+            if kk in values_out:
+                do_shape = True
+                break
+        for kk in keys_info:
+            if kk in values_out:
+                do_info = True
+                break
 
-    catData = np.loadtxt(vide_out_dir+"/"+prefix+"sky_positions_"+dataPortion+"_"+fullName+".out")
-    RA_bary = catData[:,0]
-    DEC_bary = catData[:,1]
+    dict_out = dict()
+    if do_center:
+        catData = np.loadtxt(vide_out_dir+"/"+prefix+"centers_"+dataPortion+"_"+fullName+".out", comments="#")
+        # center x,y,z (Mpc/h), volume (normalized), radius (Mpc/h), redshift, volume (Mpc/h^3), void ID, density contrast, num part, parent ID, tree level, number of children, central density
+
+        dict_out['barycenter'] = catData[:,:3]
+        dict_out['volume_norm'] = catData[:,3]
+        dict_out['radius'] = catData[:,4]
+        dict_out['redshift'] = catData[:,5]
+        dict_out['volume'] = catData[:,6]
+        dict_out['voidID'] = catData[:,7].astype(np.int_)
+        dict_out['dens_contr'] = catData[:,8]
+        dict_out['num_part'] = catData[:,9].astype(np.int_)
+        dict_out['parent_ID'] = catData[:,10].astype(np.int_)
+        dict_out['tree_level'] = catData[:,11].astype(np.int_)
+        dict_out['num_children'] = catData[:,12].astype(np.int_)
+        dict_out['central_dens'] = catData[:,13]
+
+    if do_sky:
+        catData = np.loadtxt(vide_out_dir+"/"+prefix+"sky_positions_"+dataPortion+"_"+fullName+".out")
+        dict_out['RA'] = catData[:,0]
+        dict_out['DEC'] = catData[:,1]
 
 
-    catData = np.loadtxt(vide_out_dir+"/"+prefix+"centers_"+dataPortion+"_"+fullName+".out", comments="#")
-    # center x,y,z (Mpc/h), volume (normalized), radius (Mpc/h), redshift, volume (Mpc/h^3), void ID, density contrast, num part, parent ID, tree level, number of children, central density
 
-    barycenter = catData[:,:3]
-    volume_norm = catData[:,3]
-    radius = catData[:,4]
-    redshift = catData[:,5]
-    volume_phys = catData[:,6]
-    voidID = catData[:,7].astype(np.int_)
-    dens_contr = catData[:,8]
-    num_part = catData[:,9].astype(np.int_)
-    parent_ID = catData[:,10].astype(np.int_)
-    tree_level = catData[:,11].astype(np.int_)
-    num_children = catData[:,12].astype(np.int_)
-    central_dens = catData[:,13]
+    if do_desc:
+        'file_void','core_ID','core_dens','zone_vol','zone_part', 'void_prob'
+        #ID FileVoid# CoreParticle CoreDens ZoneVol Zone#Part Void#Zones VoidVol Void#Part VoidDensContrast VoidProb
 
+        catData = np.loadtxt(vide_out_dir+"/"+prefix+"voidDesc_"+dataPortion+"_"+fullName+".out", comments="#", skiprows=2)
 
-    catData = np.loadtxt(vide_out_dir+"/"+prefix+"voidDesc_"+dataPortion+"_"+fullName+".out", comments="#", skiprows=2)
+        dict_out['file_void'] = catData[:,1].astype(np.int_)
+        dict_out['core_ID'] = catData[:,2].astype(np.int_)
+        dict_out['core_dens'] = catData[:,3]
+        dict_out['zone_vol'] = catData[:,4]
+        dict_out['zone_part'] = catData[:,5].astype(np.int_)
+        dict_out['void_zone'] = catData[:,6].astype(np.int_)
+        dict_out['void_prob'] = catData[:,10]
 
-    coreParticle = catData[:,2].astype(np.int_)
-    coreDens = catData[:,3]
-
-    del catData
-
-
-    #fileName = vide_out_dir+"/"+prefix+"shapes_"+dataPortion+"_"+fullName+".out"
-
-    #ellipticity = np.loadtxt(fileName, comments="#")[:,1:14]
+        del catData
+        
 
     if do_core:
         voro_id, VolCell, VoroXYZ, RAvoro, DECvoro, redshift_voro = read_voronoi_vide(vide_out_dir,fullName)
         del voro_id, VolCell
 
-        core_pos = VoroXYZ[coreParticle,:]
-        RAcore = RAvoro[coreParticle]
-        DECcore = DECvoro[coreParticle]
-        redshift_core = redshift_voro[coreParticle]
+        dict_out['core_pos'] = VoroXYZ[dict_out['core_ID'],:]
+        dict_out['RAcore'] = RAvoro[dict_out['core_ID']]
+        dict_out['DECcore'] = DECvoro[dict_out['core_ID']]
+        dict_out['redshift_core'] = redshift_voro[dict_out['core_ID']]
 
         del VoroXYZ, RAvoro, DECvoro, redshift_voro
 
-    if as_dict | selected_output:
-        dict_out =  dict({'barycenter':barycenter,
-                          'volume_norm':volume_norm,
-                          'radius':radius,
-                          'redshift':redshift,
-                          'volume':volume_phys,
-                          'voidID':voidID,
-                          'dens_contr':dens_contr,
-                          'num_part':num_part,
-                          'parent_ID':parent_ID,
-                          'tree_level':tree_level,
-                          'num_children':num_children,
-                          'central_dens':central_dens,
-                          'RA':RA_bary,
-                          'DEC':DEC_bary,
-                          'coreID':coreParticle,
-                          'core_dens':coreDens})
-        if do_core:
-            dict_out['core_pos'] = core_pos
-            dict_out['RAcore'] = RAcore
-            dict_out['DECcore'] = DECcore
-            dict_out['redshift_core'] = redshift_core
-        
-        if as_dict & selected_output:
+
+    if do_shape:
+        fileName = vide_out_dir+"/"+prefix+"shapes_"+dataPortion+"_"+fullName+".out"
+
+        ellipticity = np.loadtxt(fileName, comments="#")[:,1:14]
+        dict_out['ellip'] = ellipticity[:,0]
+        dict_out['eigenvalues'] = ellipticity[:,1:4]
+        dict_out['eigenvec1'] = ellipticity[:,4:7]
+        dict_out['eigenvec2'] = ellipticity[:,7:10]
+        dict_out['eigenvec3'] = ellipticity[:,10:13]
+        del ellipticity
+    if do_info:
+        infoFile = vide_out_dir+"/zobov_slice_"+fullName+".par"
+
+        File = Dataset(infoFile, 'r')
+        dict_out['num_part_tot'] = getattr(File, 'mask_index')
+        File.close()
+
+
+    if as_dict:
+        if selected_output:
             new_dict = dict()
             for kk in values_out:
                 new_dict[kk] = dict_out[kk]
             return new_dict
-        
-        elif selected_output:
-            return (dict_out[kk] for kk in values_out)
-        
-    return (barycenter, volume_norm, radius, redshift, volume_phys, voidID, dens_contr, 
-            num_part, parent_ID, tree_level, num_children, central_dens, RA_bary, DEC_bary, 
-            coreParticle, coreDens, core_pos, RAcore, DECcore, redshift_core)
+        else:
+            return dict_out
     
+    elif selected_output:
+        return (dict_out[kk] for kk in values_out)
+    
+    else:
+        return (dict_out[kk] for kk in keys_all)
+        

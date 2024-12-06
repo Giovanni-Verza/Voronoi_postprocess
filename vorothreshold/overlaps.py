@@ -23,7 +23,7 @@ def is_in_arr(ar1,ar2):
 
 @jit(nopython=True)
 def overlapping_fraction_core(
-    id_loop, IDS_voids, XYZ_voids, VolVoids, Ncells, R2vds, R2max, Ids_voro_dict, voro_vol, ind_vox, ngrid, voxel_side, max_num_tracers):
+    id_loop, ids_ovlp, Vol_ovlp, Vol_ovlp_frac, IDS_voids, XYZ_voids, VolVoids, Ncells, R2vds, R2max, Ids_voro_dict, voro_vol, ind_vox, ngrid, voxel_side, max_num_tracers):
     XYZ_ref = XYZ_voids[id_loop,:]
     #Vol = VolVoids[id_loop]
 
@@ -101,42 +101,52 @@ def overlapping_fraction_core(
     for id_trs in ids_to_expore[:progr_sphere]:
         ids_ovlp[progr_ovlp] = id_trs
         Ncells_loop = int(Ncells[id_trs]) + int(round(Ncells[id_trs]%1))
-        Vol_ovlp[progr_ovlp] = np.sum(voro_vol[(Ids_voro_dict[id_trs][:Ncells_loop])[is_in_arr(Ids_voro_dict[id_trs][:Ncells_loop],Ids_voro_dict[id_loop][:Ncells_ref])]])
+        mask_in_arr = is_in_arr(Ids_voro_dict[id_trs][:Ncells_loop],Ids_voro_dict[id_loop][:Ncells_ref])
+        Vol_ovlp[progr_ovlp] = np.sum(voro_vol[(Ids_voro_dict[id_trs][:Ncells_loop])[mask_in_arr]])
         Vol_ovlp_frac[progr_ovlp] = Vol_ovlp[progr_ovlp] / np.sum(voro_vol[Ids_voro_dict[id_trs][:Ncells_loop]])
         progr_ovlp += int(Vol_ovlp[progr_ovlp] > 0.)
 
-    return ids_ovlp, Vol_ovlp, Vol_ovlp_frac, progr_ovlp
+    #return ids_ovlp, Vol_ovlp, Vol_ovlp_frac, progr_ovlp
+    return progr_ovlp
         
 
 
-@jit(nopython=True,parallel=True)
+@jit(nopython=True) #,parallel=True)
 def overlapping_fraction_loop(
     IDS_voids, XYZ_voids, VolVoids, Ncells, R2vds, Ids_voro_dict, voro_vol, ind_vox, ngrid, Lbox, voxel_side):
     R2max = np.max(R2vds)
+    Nvoids = IDS_voids.shape[0]
 
     N_poisson_in_sphere=1.2
     #max_num_tracers = int(4 * 3.1416 / 3 * (4 * R2max) ** 1.5 * XYZ_voids.shape[0] / (Lbox * Lbox * Lbox) * N_poisson_in_sphere) 
-    max_num_tracers = int(4 * 3.1416 / 3 * (4*R2max) ** 1.5 *  np.max(ind_vox[1:] - ind_vox[:-1]) * (ngrid / Lbox) ** 3 * N_poisson_in_sphere)
+    max_num_tracers = min(Nvoids,int(4 * 3.1416 / 3 * (4*R2max) ** 1.5 *  np.max(ind_vox[1:] - ind_vox[:-1]) * (ngrid / Lbox) ** 3 * N_poisson_in_sphere))
 
     ids_ovlp = np.zeros((XYZ_voids.shape[0],max_num_tracers),dtype=np.int_)
     Vol_ovlp = np.zeros((XYZ_voids.shape[0],max_num_tracers))
     Vol_ovlp_frac = np.zeros((XYZ_voids.shape[0],max_num_tracers))
     num_ovlps = np.zeros(XYZ_voids.shape[0],dtype=np.int_)
 
-    ids_to_explore = IDS_voids[Ncells[IDS_voids] > 1.]
-    for id_loop in prange(ids_to_explore.shape[0]):
-        ids_ovlp[ids_to_explore[id_loop],:], Vol_ovlp[ids_to_explore[id_loop],:], Vol_ovlp_frac[ids_to_explore[id_loop],:], num_ovlps[ids_to_explore[id_loop]] = overlapping_fraction_core(
-            ids_to_explore[id_loop], IDS_voids, XYZ_voids, VolVoids, Ncells, R2vds, R2max, Ids_voro_dict, voro_vol, ind_vox, ngrid, voxel_side, max_num_tracers)
+    #ids_to_explore = IDS_voids[Ncells[IDS_voids] > 1.]
+    #for id_loop in prange(ids_to_explore.shape[0]):
+        #num_ovlps[ids_to_explore[id_loop]] = overlapping_fraction_core(
+        #    ids_to_explore[id_loop], ids_ovlp[ids_to_explore[id_loop],:], Vol_ovlp[ids_to_explore[id_loop],:], Vol_ovlp_frac[ids_to_explore[id_loop],:], 
+        #    IDS_voids, XYZ_voids, VolVoids, Ncells, R2vds, R2max, Ids_voro_dict, voro_vol, ind_vox, ngrid, voxel_side, max_num_tracers)
+    for id_loop in prange(Nvoids):
+        #print(id_loop,'/',IDS_voids.shape[0])
+        num_ovlps[id_loop] = overlapping_fraction_core(
+            id_loop, ids_ovlp[id_loop,:], Vol_ovlp[id_loop,:], Vol_ovlp_frac[id_loop,:], 
+            IDS_voids, XYZ_voids, VolVoids, Ncells, R2vds, R2max, Ids_voro_dict, voro_vol, ind_vox, ngrid, voxel_side, max_num_tracers)
     return ids_ovlp, Vol_ovlp, Vol_ovlp_frac, num_ovlps
 
 
 @jit(nopython=True,parallel=True)
-def compute_max_dist2(Ncells,XYZ_voids,XYZ_voro,Ids_voro_dict):
+def compute_max_dist2(Ncells,XYZ_voids,XYZ_voro,id_selected,Ids_voro_dict):
     Nvoids = XYZ_voids.shape[0]
     dist2_max = np.zeros(Nvoids)
-    id_out = np.arange(Nvoids)[Ncells>=1]
-    for i in prange(id_out.shape[0]):
-        iv = id_out[i]
+    #id_out = np.arange(Nvoids)[Ncells>=1]
+    for i in prange(id_selected.shape[0]):
+        #print(i,id_selected.shape[0])
+        iv = id_selected[i]
         Ncells_loop = int(Ncells[iv]) + int((Ncells[iv]%1) > 0)
         #print(iv,Ncells[iv],Ncells_loop,)
         dist2_max[iv] = np.max(np.sum(np.square(XYZ_voro[Ids_voro_dict[iv][:Ncells_loop],:] - XYZ_voids[iv,:]),axis=1))
@@ -228,7 +238,7 @@ def order_ids_tracers_selected_in_voxels(
 
 
 def overlapping_fraction(
-    xyz_vds, vol_vds, Ncells, xyz_voro, vol_voro, IDs_in_voids, Lbox=-1.,pbc=False,
+    xyz_vds, vol_vds, Ncells, xyz_voro, vol_voro, IDs_in_voids, Lbox=-1.,pbc=False,lightcone=False,
     ngrid=-1,nthreads=-1,verbose=True,Omega_rad=-1.):
     # xyz_vds: dim (num_voids,3) numpy array containing void centers
     # vol_vds: dim (num_voids,) numpy array containing void volumes
@@ -259,16 +269,23 @@ def overlapping_fraction(
     verboseprint('\n    nthreads set to',nthreads,flush=True)
 
 
-    R2_max = compute_max_dist2(Ncells,xyz_vds,xyz_voro,IDs_in_voids)
+    R2_max = compute_max_dist2(Ncells,xyz_vds,xyz_voro,id_selected,IDs_in_voids)
 
+
+    verboseprint('\n    R2_max computed. Max val =',(np.max(R2_max))**0.5,flush=True)
 
 
     if (Lbox < 0):
+        lightcone = True
         if pbc:
             print("    WARNING: Lbox not passed and pbc = True. We suggest either to pass Lbox or set pbc = False.",flush=True)
             verboseprint("    Computing Lbox using xyz_vds as reference:",flush=True)
         else:
             verboseprint("\n    Lbox not passed, using xyz_vds as reference:",flush=True)
+    if lightcone:
+        if Lbox > 0:
+            verboseprint("\n    Lbox passed but lightcone set to True. Lbox ignored.",flush=True)
+
         offset = np.min(xyz_vds[id_selected,:],axis=0)
         max_values = np.max(xyz_vds[id_selected,:],axis=0)
         Lbox = np.max(max_values - offset)
@@ -280,7 +297,7 @@ def overlapping_fraction(
 
     if ngrid < 0:
         #ngrid = max(int(round(5 * Lbox / np.sqrt(np.max(R2_max)))),3)
-        ngrid = max(int(round(Lbox / np.sqrt(np.max(R2_max)))),3)
+        ngrid = max(int(round(Lbox / np.sqrt(np.max(R2_max)) )),3)
 
         verboseprint("\n    ngrid not passed. Set to optimal value:",ngrid,flush=True)
 
@@ -288,6 +305,7 @@ def overlapping_fraction(
 
     voxel_side = Lbox / ngrid
     
+    verboseprint('\n    order_ids_tracers_selected_in_voxels started',flush=True)
     
     t0 = time.time()
 
