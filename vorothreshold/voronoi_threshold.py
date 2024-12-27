@@ -342,7 +342,7 @@ def voronoi_threshold(threshold,ID_core_arr,neighbor_ptr,neighbor_ids,VoroXYZ,Vo
 
     Num_vds = ID_core_arr.shape[0]
     input_mask = np.arange(Num_vds)[(1. / (VoroVol[ID_core_arr] * zDens[ID_core_arr])) <= np.max(threshold_arr)]
-    Num_selection = ID_core_arr.shape[0]
+    Num_selection = input_mask.shape[0]
 
     ID_voro_dict = Dict.empty(
         key_type=types.int64,
