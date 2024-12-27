@@ -1,9 +1,0 @@
-Sample name: example_observation
-Sample nickname: exobs
-Data type: observation
-Redshift range: 0.000000 - 0.150000
-Estimated volume (cubic Mpc/h): 4.65427e+07
-Number of real (non-boundary) tracers: 164647
-Total number of tracers: 959378
-Estimated mean tracer separation (Mpc/h): 6.56295
-Minimum void size actually used (Mpc/h): -1

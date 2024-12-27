@@ -1,6 +1,0 @@
-test
-*__pycache__*
-build
-example/data
-vorothreshold.egg-info
-.gitignore
