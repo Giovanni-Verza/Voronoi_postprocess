@@ -1,2 +1,5 @@
 test
 *__pycache__*
+vorothreshold.egg-info
+build
+example/data
