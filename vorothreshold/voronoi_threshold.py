@@ -314,6 +314,7 @@ def cluster_accretion_loops_parallel(ID_voro_dict, threshold_arr,ID_core_arr,nei
 def voronoi_threshold(threshold,ID_core_arr,neighbor_ptr,neighbor_ids,VoroXYZ,VoroVol,zDens,nthreads=-1,verbose=True,max_num_part=-1):
 
     verboseprint = print if verbose else lambda *a, **k: None
+    verboseprint('\n    voronoi_threshold started',flush=True)
 
     if nthreads <= 0:
         try:

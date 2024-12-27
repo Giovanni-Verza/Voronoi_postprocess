@@ -284,7 +284,7 @@ def overlapping_fraction(
 
     verboseprint = print if verbose else lambda *a, **k: None
 
-    verboseprint("\nIDs_in_sphere started.",flush=True)
+    verboseprint("\noverlapping_fraction started.",flush=True)
 
     if id_selected is None:
         verboseprint("\nid_selected not passed.",flush=True)
