@@ -323,6 +323,10 @@ def overlapping_fraction(
         max_values = np.max(xyz_vds[id_selected,:],axis=0)
         Lbox = np.max(max_values - offset)
 
+        offset -= Lbox*1e-4
+        max_values += Lbox*1e-4
+        Lbox = np.max(max_values - offset)
+
         
         verboseprint("    min(xyz_vds) =",*offset,flush=True)
         verboseprint("    max(xyz_vds) =",*max_values,flush=True)

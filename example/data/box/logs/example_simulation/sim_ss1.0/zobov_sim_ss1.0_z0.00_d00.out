@@ -1,0 +1,743 @@
+np = 392161
+1.000000
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+s = 0.005952, bf = 0.100000, g = 0.099823.
+b=(0,0,0), c=(0.250000,0.250000,0.250000), nvp=50219, nvpbuf=137438
+b=(0,0,1), c=(0.250000,0.250000,0.750000), nvp=49441, nvpbuf=135149
+b=(0,1,0), c=(0.250000,0.750000,0.250000), nvp=49449, nvpbuf=136330
+b=(0,1,1), c=(0.250000,0.750000,0.750000), nvp=47987, nvpbuf=133826
+b=(1,0,0), c=(0.750000,0.250000,0.250000), nvp=49479, nvpbuf=135783
+b=(1,0,1), c=(0.750000,0.250000,0.750000), nvp=48479, nvpbuf=133964
+b=(1,1,0), c=(0.750000,0.750000,0.250000), nvp=48355, nvpbuf=135912
+b=(1,1,1), c=(0.750000,0.750000,0.750000), nvp=48752, nvpbuf=133472
+Nvp range: 47987,50219
+Nvpbuf range: 133472,137438
+Total max particles: 180788
+Writing script file to scr_sim_ss1.0_z0.00_d00.
+/bin/bash: /opt/conda/lib/libtinfo.so.6: no version information available (required by /bin/bash)
+np = 392161
+1.000000
+np = 392161
+1.000000
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+392161 particles
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+392161 particles
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+s = 0.005952, bf = 0.100000, g = 0.099823.
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+s = 0.005952, bf = 0.100000, g = 0.099823.
+c: 0.000000,0.000000,0.500000
+nvp = 49460
+x: -0.249957,0.249998; y: -0.249988,0.249989; z:-0.249956,0.249991
+nvpbuf = 133969
+x: -0.349989,0.349998; y: -0.349988,0.349995; z:-0.349996,0.349995
+There should be ~ 134511.224718 points; there are 133969
+Added guard points to total 177319 points (should be 177319)
+x: -0.349823,0.349823; y: -0.349823,0.349823; z:-0.349823,0.349823
+File read.  Tessellating ...
+c: 0.000000,0.000000,0.000000
+nvp = 48207
+x: -0.249999,0.250000; y: -0.249994,0.249992; z:-0.249996,0.250000
+nvpbuf = 133372
+x: -0.349997,0.349998; y: -0.349989,0.349995; z:-0.350000,0.349996
+There should be ~ 134511.224718 points; there are 133372
+Added guard points to total 176722 points (should be 176722)
+x: -0.349823,0.349823; y: -0.349823,0.349823; z:-0.349823,0.349823
+File read.  Tessellating ...
+
+Delaunay triangulation by the convex hull of 177319 points in 4-d:
+
+  Number of input sites: 177319
+  Number of Delaunay regions: 1135048
+  Number of triangulated facets: 84288
+
+Statistics for:  | qhull s d Qt
+
+  Number of points processed: 177319
+  Number of hyperplanes created: 3964954
+  Number of facets in hull: 1135536
+  Number of distance tests for qhull: 22871678
+  Number of distance tests for merging: 23562035
+  Number of distance tests for checking: 8485728
+  Number of merged facets: 156695
+  CPU seconds to compute hull (after input): 5.721
+
+
+Delaunay triangulation by the convex hull of 176722 points in 4-d:
+
+  Number of input sites: 176722
+  Number of Delaunay regions: 1130057
+  Number of triangulated facets: 84294
+
+Statistics for:  | qhull s d Qt
+
+  Number of points processed: 176722
+  Number of hyperplanes created: 3953666
+  Number of facets in hull: 1130568
+  Number of distance tests for qhull: 22603559
+  Number of distance tests for merging: 23479814
+  Number of distance tests for checking: 16897008
+  Number of merged facets: 156299
+  CPU seconds to compute hull (after input): 6.491
+
+Now finding volumes ...
+Now finding volumes ...
+0: 10, 0.176672
+1000: 19, 1.240569
+2000: 8, 0.192258
+3000: 13, 0.503184
+4000: 7, 0.059960
+5000: 10, 0.144303
+6000: 14, 0.969244
+7000: 19, 0.916676
+8000: 15, 0.558159
+9000: 15, 0.916321
+10000: 14, 0.393298
+11000: 13, 0.166440
+12000: 10, 0.308214
+13000: 18, 2.666021
+14000: 20, 0.926746
+15000: 24, 2.149142
+16000: 18, 1.164055
+17000: 21, 3.872957
+18000: 15, 0.259358
+19000: 19, 2.554624
+20000: 27, 2.811663
+21000: 13, 1.310702
+22000: 24, 1.167188
+23000: 22, 1.318458
+24000: 21, 0.737691
+25000: 12, 0.308247
+26000: 14, 1.601186
+27000: 19, 1.015109
+28000: 11, 0.297879
+29000: 20, 1.777231
+30000: 9, 0.111633
+31000: 14, 0.786063
+32000: 10, 0.381544
+33000: 25, 2.824910
+34000: 9, 0.128705
+35000: 8, 0.106000
+36000: 26, 5.120445
+37000: 11, 0.210916
+38000: 20, 0.440387
+39000: 10, 0.074195
+40000: 9, 0.136019
+41000: 10, 0.704525
+42000: 20, 2.573383
+43000: 17, 2.029480
+44000: 22, 1.811764
+45000: 16, 1.928784
+46000: 14, 1.262855
+47000: 9, 0.390826
+48000: 15, 0.257611
+49000: 20, 1.756243
+Average volume = 0.990832
+Output to /home/giovanni/Desktop/Codes/Voronoi_postprocess/test/data/box/examples/example_simulation//sim_ss1.0//sample_sim_ss1.0_z0.00_d00//part._sim_ss1.0_z0.00_d00.00.00.01
+
+nvp = 49460
+0: 16, 0.338745
+1000: 10, 0.865719
+2000: 15, 0.169013
+3000: 11, 0.106428
+4000: 10, 0.441020
+5000: 9, 0.026478
+6000: 17, 1.221606
+7000: 25, 1.067945
+8000: 7, 0.158390
+9000: 10, 0.268384
+10000: 24, 2.622471
+11000: 12, 0.569070
+12000: 18, 0.689747
+13000: 20, 1.034388
+14000: 21, 2.013421
+15000: 14, 0.720729
+16000: 24, 5.061393
+17000: 10, 0.384967
+18000: 15, 0.706547
+19000: 11, 0.848829
+20000: 20, 0.703375
+21000: 10, 0.874774
+22000: 13, 0.369704
+23000: 8, 0.054876
+24000: 15, 0.266894
+25000: 8, 0.130842
+26000: 21, 1.828490
+27000: 11, 0.783717
+28000: 18, 0.747636
+29000: 8, 0.035778
+30000: 17, 0.456414
+31000: 19, 1.161548
+32000: 12, 0.584265
+33000: 14, 0.283801
+34000: 13, 0.719769
+35000: 14, 0.685001
+36000: 23, 1.040454
+37000: 20, 0.785442
+38000: 9, 0.309892
+39000: 9, 0.255571
+40000: 24, 2.831135
+41000: 22, 1.854892
+42000: 12, 0.457146
+43000: 19, 1.046401
+44000: 13, 0.451261
+45000: 11, 0.169609
+46000: 28, 1.493287
+47000: 18, 0.597562
+48000: 18, 0.290893
+Average volume = 1.017
+Output to /home/giovanni/Desktop/Codes/Voronoi_postprocess/test/data/box/examples/example_simulation//sim_ss1.0//sample_sim_ss1.0_z0.00_d00//part._sim_ss1.0_z0.00_d00.00.00.00
+
+nvp = 48207
+np = 392161
+1.000000
+np = 392161
+1.000000
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+392161 particles
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+392161 particles
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+s = 0.005952, bf = 0.100000, g = 0.099823.
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+s = 0.005952, bf = 0.100000, g = 0.099823.
+c: 0.000000,0.500000,0.500000
+nvp = 48977
+x: -0.249988,0.249972; y: -0.249993,0.249997; z:-0.249989,0.249978
+nvpbuf = 134296
+x: -0.349994,0.349999; y: -0.349999,0.349997; z:-0.349988,0.349995
+There should be ~ 134511.224718 points; there are 134296
+Added guard points to total 177646 points (should be 177646)
+x: -0.349823,0.349823; y: -0.349823,0.349823; z:-0.349823,0.349823
+File read.  Tessellating ...
+c: 0.000000,0.500000,0.000000
+nvp = 47842
+x: -0.249998,0.249996; y: -0.249996,0.249986; z:-0.249998,0.249995
+nvpbuf = 134488
+x: -0.349989,0.349999; y: -0.349999,0.349997; z:-0.350000,0.349996
+There should be ~ 134511.224718 points; there are 134488
+Added guard points to total 177838 points (should be 177838)
+x: -0.349823,0.349823; y: -0.349823,0.349823; z:-0.349823,0.349823
+File read.  Tessellating ...
+
+Delaunay triangulation by the convex hull of 177646 points in 4-d:
+
+  Number of input sites: 177646
+  Number of Delaunay regions: 1137162
+  Number of triangulated facets: 84360
+
+Statistics for:  | qhull s d Qt
+
+  Number of points processed: 177646
+  Number of hyperplanes created: 3980700
+  Number of facets in hull: 1137701
+  Number of distance tests for qhull: 21691221
+  Number of distance tests for merging: 23696237
+  Number of distance tests for checking: 16991798
+  Number of merged facets: 158216
+  CPU seconds to compute hull (after input): 6.525
+
+
+Delaunay triangulation by the convex hull of 177838 points in 4-d:
+
+  Number of input sites: 177838
+  Number of Delaunay regions: 1138618
+  Number of triangulated facets: 84364
+
+Statistics for:  | qhull s d Qt
+
+  Number of points processed: 177838
+  Number of hyperplanes created: 3985955
+  Number of facets in hull: 1139097
+  Number of distance tests for qhull: 23132717
+  Number of distance tests for merging: 23740639
+  Number of distance tests for checking: 17023460
+  Number of merged facets: 157874
+  CPU seconds to compute hull (after input): 6.68
+  Maximum distance of point above facet: 1.4e-15 (0.2x)
+
+Now finding volumes ...
+Now finding volumes ...
+0: 11, 0.236875
+1000: 17, 0.358142
+2000: 16, 0.572398
+3000: 18, 1.800005
+4000: 17, 0.492711
+5000: 22, 1.647877
+6000: 14, 0.744322
+7000: 11, 0.718497
+8000: 13, 0.172240
+9000: 23, 2.081707
+10000: 14, 0.708940
+11000: 12, 0.372846
+12000: 20, 0.665054
+13000: 9, 0.054668
+14000: 20, 3.230859
+15000: 17, 0.483421
+16000: 15, 1.408744
+17000: 21, 1.111503
+18000: 14, 1.254163
+19000: 18, 1.209973
+20000: 27, 1.431746
+21000: 18, 1.177091
+22000: 11, 1.442361
+23000: 12, 0.827689
+24000: 13, 0.816976
+25000: 20, 1.092344
+26000: 16, 0.686621
+27000: 18, 1.921662
+28000: 11, 0.141903
+29000: 8, 0.225481
+30000: 12, 0.735789
+31000: 22, 0.698410
+32000: 27, 1.073878
+33000: 9, 0.556229
+34000: 12, 0.588714
+35000: 16, 0.930304
+36000: 8, 0.142638
+37000: 10, 0.435190
+38000: 23, 1.894877
+39000: 13, 0.535085
+40000: 10, 0.112697
+41000: 12, 1.062049
+42000: 7, 0.038546
+43000: 15, 1.375914
+44000: 19, 1.893173
+45000: 10, 0.280314
+46000: 8, 0.079079
+47000: 24, 1.233917
+Average volume = 1.02516
+Output to /home/giovanni/Desktop/Codes/Voronoi_postprocess/test/data/box/examples/example_simulation//sim_ss1.0//sample_sim_ss1.0_z0.00_d00//part._sim_ss1.0_z0.00_d00.00.01.00
+
+nvp = 47842
+0: 15, 0.099618
+1000: 14, 0.500259
+2000: 15, 0.483395
+3000: 15, 0.913298
+4000: 14, 0.407486
+5000: 20, 0.414567
+6000: 15, 0.351891
+7000: 8, 0.123716
+8000: 9, 0.095698
+9000: 19, 0.917302
+10000: 16, 0.722886
+11000: 14, 1.072761
+12000: 8, 0.029910
+13000: 16, 1.149541
+14000: 10, 0.615239
+15000: 12, 0.533821
+16000: 11, 0.224277
+17000: 14, 0.856555
+18000: 11, 0.253867
+19000: 13, 0.574381
+20000: 24, 1.370961
+21000: 18, 0.288023
+22000: 14, 1.097781
+23000: 16, 0.577380
+24000: 18, 4.487870
+25000: 11, 0.209026
+26000: 17, 0.375646
+27000: 23, 0.853518
+28000: 15, 1.797250
+29000: 17, 2.560989
+30000: 13, 1.589965
+31000: 16, 0.527249
+32000: 16, 0.347234
+33000: 14, 0.733708
+34000: 14, 0.221555
+35000: 10, 0.553081
+36000: 14, 0.891023
+37000: 10, 0.745177
+38000: 13, 1.296306
+39000: 23, 1.947993
+40000: 12, 0.326072
+41000: 14, 0.428225
+42000: 19, 1.750160
+43000: 17, 0.988651
+44000: 14, 1.190323
+45000: 22, 3.164386
+46000: 18, 1.246731
+47000: 16, 0.609056
+48000: 16, 1.066552
+Average volume = 1.00257
+Output to /home/giovanni/Desktop/Codes/Voronoi_postprocess/test/data/box/examples/example_simulation//sim_ss1.0//sample_sim_ss1.0_z0.00_d00//part._sim_ss1.0_z0.00_d00.00.01.01
+
+nvp = 48977
+np = 392161
+1.000000
+np = 392161
+1.000000
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+392161 particles
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+392161 particles
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+s = 0.005952, bf = 0.100000, g = 0.099823.
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+s = 0.005952, bf = 0.100000, g = 0.099823.
+c: 0.500000,0.000000,0.500000
+nvp = 48941
+x: -0.249985,0.249984; y: -0.249998,0.249974; z:-0.249997,0.249959
+nvpbuf = 134198
+x: -0.349995,0.349992; y: -0.349989,0.349995; z:-0.349998,0.349998
+There should be ~ 134511.224718 points; there are 134198
+Added guard points to total 177548 points (should be 177548)
+x: -0.349823,0.349823; y: -0.349823,0.349823; z:-0.349823,0.349823
+File read.  Tessellating ...
+c: 0.500000,0.000000,0.000000
+nvp = 49408
+x: -0.249976,0.249997; y: -0.249988,0.249999; z:-0.249992,0.249980
+nvpbuf = 133576
+x: -0.349995,0.349992; y: -0.349988,0.350000; z:-0.349994,0.349998
+There should be ~ 134511.224718 points; there are 133576
+Added guard points to total 176926 points (should be 176926)
+x: -0.349823,0.349823; y: -0.349823,0.349823; z:-0.349823,0.349823
+File read.  Tessellating ...
+
+Delaunay triangulation by the convex hull of 177548 points in 4-d:
+
+  Number of input sites: 177548
+  Number of Delaunay regions: 1137373
+  Number of triangulated facets: 84376
+
+Statistics for:  | qhull s d Qt
+
+  Number of points processed: 177548
+  Number of hyperplanes created: 3982840
+  Number of facets in hull: 1137895
+  Number of distance tests for qhull: 22583565
+  Number of distance tests for merging: 23716969
+  Number of distance tests for checking: 8498081
+  Number of merged facets: 157653
+  CPU seconds to compute hull (after input): 5.795
+
+Now finding volumes ...
+
+Delaunay triangulation by the convex hull of 176926 points in 4-d:
+
+  Number of input sites: 176926
+  Number of Delaunay regions: 1132747
+  Number of triangulated facets: 84348
+
+Statistics for:  | qhull s d Qt
+
+  Number of points processed: 176926
+  Number of hyperplanes created: 3957468
+  Number of facets in hull: 1133478
+  Number of distance tests for qhull: 21680187
+  Number of distance tests for merging: 23549620
+  Number of distance tests for checking: 16957614
+  Number of merged facets: 157369
+  CPU seconds to compute hull (after input): 6.707
+
+Now finding volumes ...
+0: 12, 0.341244
+1000: 10, 0.612546
+2000: 10, 0.123941
+3000: 14, 0.963192
+4000: 13, 0.273130
+5000: 16, 1.472810
+6000: 8, 0.022109
+7000: 11, 0.239175
+8000: 17, 0.680026
+9000: 20, 0.245881
+10000: 15, 0.863386
+11000: 13, 0.686685
+12000: 15, 0.689913
+13000: 11, 0.676974
+14000: 15, 0.622204
+15000: 9, 0.130821
+16000: 19, 4.648917
+17000: 13, 0.777317
+18000: 18, 0.893373
+19000: 13, 0.331100
+20000: 17, 0.667199
+21000: 12, 0.680672
+22000: 13, 0.479983
+23000: 14, 0.834085
+24000: 21, 1.630900
+25000: 18, 1.357187
+26000: 13, 0.254854
+27000: 25, 0.948917
+28000: 27, 1.983201
+29000: 11, 1.369950
+30000: 8, 0.755728
+31000: 12, 0.297019
+32000: 15, 1.039813
+33000: 21, 1.357121
+34000: 27, 1.732767
+35000: 12, 0.668586
+36000: 21, 0.911535
+37000: 15, 1.623607
+38000: 14, 0.608004
+39000: 8, 0.388228
+40000: 18, 0.376085
+41000: 12, 0.891773
+42000: 9, 0.123939
+43000: 21, 1.316470
+44000: 15, 1.982131
+45000: 16, 0.736927
+46000: 15, 0.555517
+47000: 24, 1.692548
+48000: 20, 1.461564
+Average volume = 1.00131
+Output to /home/giovanni/Desktop/Codes/Voronoi_postprocess/test/data/box/examples/example_simulation//sim_ss1.0//sample_sim_ss1.0_z0.00_d00//part._sim_ss1.0_z0.00_d00.01.00.01
+
+nvp = 48941
+0: 15, 0.315411
+1000: 20, 1.267920
+2000: 14, 0.312931
+3000: 32, 4.022517
+4000: 10, 0.325419
+5000: 21, 2.695304
+6000: 11, 0.135634
+7000: 14, 0.239162
+8000: 13, 0.369066
+9000: 14, 0.628602
+10000: 10, 0.113208
+11000: 8, 0.271506
+12000: 5, 0.056352
+13000: 19, 2.109130
+14000: 16, 0.537041
+15000: 9, 0.174553
+16000: 24, 1.265990
+17000: 16, 0.807409
+18000: 13, 0.483320
+19000: 17, 1.055442
+20000: 20, 0.943235
+21000: 28, 3.566374
+22000: 21, 1.897650
+23000: 20, 0.778859
+24000: 19, 2.252320
+25000: 11, 0.101881
+26000: 27, 1.592452
+27000: 26, 2.442879
+28000: 10, 0.243689
+29000: 12, 0.251244
+30000: 20, 4.016371
+31000: 9, 0.260884
+32000: 21, 2.867309
+33000: 14, 0.664758
+34000: 15, 0.427994
+35000: 20, 0.968741
+36000: 13, 1.350629
+37000: 14, 0.822919
+38000: 14, 1.337693
+39000: 12, 0.115683
+40000: 19, 0.848397
+41000: 8, 0.138530
+42000: 15, 0.846084
+43000: 18, 0.762259
+44000: 18, 1.134090
+45000: 10, 0.196522
+46000: 25, 1.364961
+47000: 22, 4.210941
+48000: 14, 1.016120
+49000: 32, 3.258195
+Average volume = 0.992163
+Output to /home/giovanni/Desktop/Codes/Voronoi_postprocess/test/data/box/examples/example_simulation//sim_ss1.0//sample_sim_ss1.0_z0.00_d00//part._sim_ss1.0_z0.00_d00.01.00.00
+
+nvp = 49408
+np = 392161
+1.000000
+np = 392161
+1.000000
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+392161 particles
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+392161 particles
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+s = 0.005952, bf = 0.100000, g = 0.099823.
+np: 392161, x: 0.000000,0.999998; y: 0.000001,0.999987; z: 0.000001,0.999996
+s = 0.005952, bf = 0.100000, g = 0.099823.
+c: 0.500000,0.500000,0.500000
+nvp = 49708
+x: -0.249996,0.249984; y: -0.249997,0.249997; z:-0.249972,0.250000
+nvpbuf = 134051
+x: -0.349995,0.349999; y: -0.349999,0.349997; z:-0.349998,0.349992
+There should be ~ 134511.224718 points; there are 134051
+Added guard points to total 177401 points (should be 177401)
+x: -0.349823,0.349823; y: -0.349823,0.349823; z:-0.349823,0.349823
+File read.  Tessellating ...
+c: 0.500000,0.500000,0.000000
+nvp = 49618
+x: -0.249962,0.249992; y: -0.249995,0.249996; z:-0.249991,0.249995
+nvpbuf = 135276
+x: -0.349995,0.349997; y: -0.349999,0.349997; z:-0.349989,0.349996
+There should be ~ 134511.224718 points; there are 135276
+Added guard points to total 178626 points (should be 178626)
+x: -0.349823,0.349823; y: -0.349823,0.349823; z:-0.349823,0.349823
+File read.  Tessellating ...
+
+Delaunay triangulation by the convex hull of 178626 points in 4-d:
+
+  Number of input sites: 178626
+  Number of Delaunay regions: 1143846
+  Number of triangulated facets: 84394
+
+Statistics for:  | qhull s d Qt
+
+  Number of points processed: 178626
+  Number of hyperplanes created: 4000978
+  Number of facets in hull: 1144378
+  Number of distance tests for qhull: 22346201
+  Number of distance tests for merging: 23799036
+  Number of distance tests for checking: 17095408
+  Number of merged facets: 158351
+  CPU seconds to compute hull (after input): 6.637
+  Maximum distance of point above facet: 1.5e-15 (0.2x)
+
+
+Delaunay triangulation by the convex hull of 177401 points in 4-d:
+
+  Number of input sites: 177401
+  Number of Delaunay regions: 1136614
+  Number of triangulated facets: 84336
+
+Statistics for:  | qhull s d Qt
+
+  Number of points processed: 177401
+  Number of hyperplanes created: 3972661
+  Number of facets in hull: 1137093
+  Number of distance tests for qhull: 24044214
+  Number of distance tests for merging: 23659212
+  Number of distance tests for checking: 16980046
+  Number of merged facets: 158369
+  CPU seconds to compute hull (after input): 6.664
+
+Now finding volumes ...
+Now finding volumes ...
+0: 18, 0.327824
+1000: 8, 0.098771
+2000: 12, 0.381500
+3000: 15, 0.655869
+4000: 10, 0.140532
+5000: 18, 0.476164
+6000: 12, 0.336658
+7000: 15, 0.663006
+8000: 19, 0.699561
+9000: 18, 0.836099
+10000: 14, 0.664848
+11000: 17, 0.483851
+12000: 6, 0.215440
+13000: 26, 2.643553
+14000: 13, 0.326867
+15000: 15, 0.725813
+16000: 18, 0.257199
+17000: 10, 0.317004
+18000: 15, 0.801596
+19000: 15, 0.678063
+20000: 13, 0.709802
+21000: 14, 0.647509
+22000: 14, 0.252877
+23000: 16, 0.593423
+24000: 16, 0.627479
+25000: 13, 2.113118
+26000: 13, 0.399967
+27000: 27, 4.536277
+28000: 15, 0.765481
+29000: 12, 0.665484
+30000: 12, 0.608830
+31000: 15, 0.598292
+32000: 20, 0.870551
+33000: 22, 3.493330
+34000: 9, 0.482963
+35000: 11, 0.137556
+36000: 6, 0.132334
+37000: 15, 0.725045
+38000: 7, 0.079251
+39000: 17, 1.039801
+40000: 10, 0.127440
+41000: 22, 2.361170
+42000: 31, 3.697302
+43000: 27, 3.241477
+44000: 19, 3.500400
+45000: 21, 1.740230
+46000: 20, 0.571485
+47000: 10, 0.120508
+48000: 19, 1.193897
+49000: 16, 1.266475
+Average volume = 0.98721
+Output to /home/giovanni/Desktop/Codes/Voronoi_postprocess/test/data/box/examples/example_simulation//sim_ss1.0//sample_sim_ss1.0_z0.00_d00//part._sim_ss1.0_z0.00_d00.01.01.00
+
+nvp = 49618
+0: 9, 0.127044
+1000: 21, 0.866286
+2000: 12, 0.224482
+3000: 9, 0.214688
+4000: 10, 0.166593
+5000: 19, 0.801794
+6000: 20, 1.430435
+7000: 10, 0.075920
+8000: 14, 0.503065
+9000: 27, 3.652479
+10000: 16, 0.461559
+11000: 26, 1.970278
+12000: 25, 0.818909
+13000: 15, 0.436413
+14000: 20, 0.690285
+15000: 18, 0.430479
+16000: 14, 0.312084
+17000: 12, 0.156186
+18000: 14, 0.950080
+19000: 15, 1.909262
+20000: 14, 0.131013
+21000: 19, 1.435644
+22000: 18, 2.259641
+23000: 16, 0.924335
+24000: 9, 0.590105
+25000: 11, 0.164631
+26000: 16, 1.030741
+27000: 13, 0.798734
+28000: 12, 0.752810
+29000: 15, 1.518903
+30000: 20, 2.449827
+31000: 19, 1.215893
+32000: 10, 0.367124
+33000: 13, 0.329315
+34000: 16, 0.991871
+35000: 24, 2.532086
+36000: 18, 1.702443
+37000: 20, 2.061310
+38000: 31, 4.943868
+39000: 11, 0.255907
+40000: 14, 0.245761
+41000: 12, 0.024185
+42000: 24, 2.033082
+43000: 19, 1.614437
+44000: 19, 0.791858
+45000: 11, 0.622397
+46000: 19, 1.662922
+47000: 20, 2.351765
+48000: 24, 0.480629
+49000: 23, 6.283974
+Average volume = 0.985151
+Output to /home/giovanni/Desktop/Codes/Voronoi_postprocess/test/data/box/examples/example_simulation//sim_ss1.0//sample_sim_ss1.0_z0.00_d00//part._sim_ss1.0_z0.00_d00.01.01.01
+
+nvp = 49708
+We have 392161 particles to tie together.
+The maximum number of particles in a file is 49708.
+0 1 0 1 0 1 0 1 
+
+Removing mock galaxies...
+Removed 0 mock galaxies and 0 adjacent galaxies.
+There are 392161 galaxies remaining.
+0 particles done more than once.
+Average # adjacencies = 15.504015 (15.535460 for Poisson)
+Average volume = 1.000000
+Outputting to/home/giovanni/Desktop/Codes/Voronoi_postprocess/test/data/box/examples/example_simulation//sim_ss1.0//sample_sim_ss1.0_z0.00_d00//adj_sim_ss1.0_z0.00_d00.dat, /home/giovanni/Desktop/Codes/Voronoi_postprocess/test/data/box/examples/example_simulation//sim_ss1.0//sample_sim_ss1.0_z0.00_d00//vol_sim_ss1.0_z0.00_d00.dat
+
+TOLERANCE: 0.000000
+adj: 392161 particles
+392161 particles
+About to jump ... 
+Post-jump ...
+3061 initial zones found
+Total numZones = 3061
+Found zone adjacencies
+Densities range from 6.375153e-02 to 3.300198e+02.
+Maxdenscontrast = 3.362689.
+Writing void/zone relations...
+about to sort ...
+Done!

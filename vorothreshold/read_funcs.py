@@ -343,7 +343,7 @@ def vide_voids_cat(vide_out_dir,fullName,dataPortion='all',untrimmed=True,as_dic
 
 
     if do_desc:
-        'file_void','core_ID','core_dens','zone_vol','zone_part', 'void_prob'
+        #'file_void','core_ID','core_dens','zone_vol','zone_part', 'void_prob'
         #ID FileVoid# CoreParticle CoreDens ZoneVol Zone#Part Void#Zones VoidVol Void#Part VoidDensContrast VoidProb
 
         catData = np.loadtxt(vide_out_dir+"/"+prefix+"voidDesc_"+dataPortion+"_"+fullName+".out", comments="#", skiprows=2)
