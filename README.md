@@ -33,7 +33,7 @@ The module `ovelaps` contains functions to find overlapping voids.
 
 The module `read_funcs` contains functions to read `VIDE` quantities and the Voronoi scheme from `ZOBOV`.
 
-The module `utilities` contains functions to convert from cartesian to spherical coordinates (both in R.A.-DEC or $\theta$-$\phi$) and to map redshift in comoving distances and vice versa.
+The module `utilities` contains functions to convert from cartesian to spherical coordinates (both in R.A.-DEC or $\theta$ $\phi$) and to map redshift in comoving distances and vice versa.
 
 
 ## WARNINGS
