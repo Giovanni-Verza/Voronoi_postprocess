@@ -1,5 +1,7 @@
 import glob
 import numpy as np
+import os
+from numba import get_num_threads
 from . read_funcs import read_adjfile, read_voronoi_vide
 from . masks import borders_mask_bruteforce, dist_limit_mask
 from . overlaps import select_overlaps, overlapping_fraction
@@ -11,6 +13,22 @@ from . voronoi_threshold import is_in_arr, voronoi_threshold
 class voronoi_threshold_finder:
     def __init__(self,threshold,lightcone=True,ID_core=None,neighbor_ptr=None,neighbor_ids=None,VoroXYZ=None,VoroVol=None,tracer_dens=None,
                  vide_path=None,comov_range=None,z_range=None,OmegaM=None,w0=-1.,wa=1.,nthreads=-1,verbose=True,max_num_part=-1):
+        
+        if nthreads <= 0:
+            try:
+                nthreads  = int(os.environ["OMP_NUM_THREADS"])
+            except:
+                nthreads  = get_num_threads()
+        try:
+            if nthreads > int(os.environ["OMP_NUM_THREADS"]):
+                nthreads = int(os.environ["OMP_NUM_THREADS"])
+        except:
+            if nthreads  > get_num_threads():
+                nthreads  = get_num_threads()
+
+        self.nthreads = nthreads
+ 
+
         if not lightcone:
             raise ValueError('Simulation box option has not been developed yet. This class currently works with lightcone=True option only.')
         else:
@@ -45,7 +63,7 @@ class voronoi_threshold_finder:
 
             if max_num_part < 0:
 
-                max_num_part = 5 * np.max(np.loadtxt(vide_path+'/untrimmed_centers_all_'+vide_out_name+'.out', comments="#")[:,9].astype(np.int_))
+                max_num_part = int(5 * np.max(np.loadtxt(vide_path+'/untrimmed_centers_all_'+vide_out_name+'.out', comments="#")[:,9]))
                 if verbose:
                     print('max_num_part < 0: authomatically set to 5 * max(num_part):',max_num_part,flush=True)
 
@@ -93,6 +111,7 @@ class voronoi_threshold_finder:
         self.max_num_part = max_num_part
 
 
+
     def compute_overlaps(self,frac_ovlp,thresholds=None,ids_threshold=None):
         if (ids_threshold is None):
             if thresholds is None:
@@ -108,7 +127,7 @@ class voronoi_threshold_finder:
         for ith in ids_threshold:
             ids_ovlp, Vol_ovlp, Vol_ovlp_frac, num_ovlps = overlapping_fraction(
                 self.Xcm[:,ith,:], self.Vol_interp[:,ith], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
-                id_selected=self.ids_selected[ith],nthreads=1,verbose=self.verbose)
+                id_selected=self.ids_selected[ith],nthreads=self.nthreads,verbose=self.verbose)
             sor_by_vol = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1]
 
             self.id_out[ith][frac_ovlp] = select_overlaps(frac_ovlp,self.ids_selected[ith],sor_by_vol, ids_ovlp, Vol_ovlp_frac, num_ovlps)
