@@ -155,9 +155,6 @@ class voronoi_threshold_finder:
                 sor_by_vol = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1]
 
                 self.id_out[ith][frac_ovlp] = select_overlaps(frac_ovlp,self.ids_selected[ith],sor_by_vol, ids_ovlp, Vol_ovlp_frac, num_ovlps)
-
-            if key == 'ids_nonoverlapping':
-                return self.id_out[ith][frac_ovlp]
             
             id_ovlp_out = self.ids_selected[ith][self.id_out[ith][frac_ovlp]]
         
@@ -182,7 +179,10 @@ class voronoi_threshold_finder:
 
         if key == 'id_wrt_all':
             # IDs of voids of the entire voronoi_threshold output that reach the threshold value and satifty the overlaps condition.
-            return self.id_out[ith][frac_ovlp]
+            if frac_ovlp < 1:
+                return self.id_out[ith][frac_ovlp]
+            else:
+                return np.arange(self.ids_selected[ith].shape[0])
         
         if key == 'xyz':
             # Comoving coordinates of the volume weighted baricenter
