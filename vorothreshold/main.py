@@ -179,6 +179,11 @@ class voronoi_threshold_finder:
             # IDs of voids of the entire voronoi_threshold output that reach the threshold value and satifty the overlaps condition.
             return id_ovlp_out
         
+
+        if key == 'id_wrt_all':
+            # IDs of voids of the entire voronoi_threshold output that reach the threshold value and satifty the overlaps condition.
+            return self.id_out[ith][frac_ovlp]
+        
         if key == 'xyz':
             # Comoving coordinates of the volume weighted baricenter
             return self.Xcm[id_ovlp_out,ith,:]
