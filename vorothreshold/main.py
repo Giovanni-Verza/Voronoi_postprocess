@@ -136,7 +136,7 @@ class voronoi_threshold_finder:
     def get_values(self,threshold,key,frac_ovlp):
         
         all_keys = ['Ncells','ID_original_sample','id_selected','xyz','RA','DEC','redshift','volume','comov_dist',
-                    'radius','ell_eigenvalues','ell_eigenvectors','central_dens','ids_nonoverlapping']
+                    'radius','ell_eigenvalues','ell_eigenvectors','central_dens','id_wrt_all']
         
         if not key in all_keys:
             all_k_str = ''
