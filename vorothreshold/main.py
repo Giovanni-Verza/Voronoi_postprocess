@@ -1,18 +1,27 @@
 import glob
 import numpy as np
 import os
+import time
 from numba import get_num_threads
 from . read_funcs import read_adjfile, read_voronoi_vide
 from . masks import borders_mask_bruteforce, dist_limit_mask
 from . overlaps import select_overlaps, overlapping_fraction
-from . utilities import from_XYZ_to_rRAdec, from_rRAdec_to_XYZ, ComovingDistanceOverh, RedshiftFromComovingDistanceOverh
+from . utilities import from_XYZ_to_rRAdec, from_rRAdec_to_XYZ, ComovingDistanceOverh, RedshiftFromComovingDistanceOverh, StrHminSec
 from . voronoi_threshold import is_in_arr, voronoi_threshold
 
 
 
 class voronoi_threshold_finder:
     def __init__(self,threshold,lightcone=True,ID_core=None,neighbor_ptr=None,neighbor_ids=None,VoroXYZ=None,VoroVol=None,tracer_dens=None,
-                 vide_path=None,comov_range=None,z_range=None,OmegaM=None,w0=-1.,wa=1.,nthreads=-1,verbose=True,max_num_part=-1):
+                 vide_path=None,comov_range=None,z_range=None,OmegaM=None,w0=-1.,wa=1.,nthreads=-1,verbose=False,verbose_essential=True,max_num_part=-1):
+        
+        if verbose:
+            verbose_essential = True
+        self.verbose = verbose
+        self.verbose_essential = verbose_essential
+
+        
+        essentialprint = print if verbose_essential else lambda *a, **k: None
         
         if nthreads <= 0:
             try:
@@ -40,9 +49,11 @@ class voronoi_threshold_finder:
         else:
             self.threshold = np.array(threshold)
 
-        self.verbose = verbose
         if not (vide_path is None):
             # load VTFE scheme from adjfile
+            essentialprint('    Loading VIDE data.',flush=True)
+            t0 = time.time()
+
             adjfile = glob.glob(vide_path+'/adj_*')[0] #vide_path + '/adj_' + vide_out_name + '.dat'
             neighbor_ptr, neighbor_ids = read_adjfile(adjfile)
 
@@ -60,6 +71,8 @@ class voronoi_threshold_finder:
             dist_voro = dist_z.get_dist(redshift_voro)
             self.VoroXYZ[:,:] = np.array(from_rRAdec_to_XYZ(dist_voro,self.RAvoro,self.DECvoro)).T
             del ids_voro, redshift_voro
+
+            essentialprint('        done:',StrHminSec(time.time()-t0),flush=True)
 
             if max_num_part < 0:
 
@@ -90,16 +103,25 @@ class voronoi_threshold_finder:
 
 
 
+        essentialprint('    voronoi_threshold started, nthreads =',nthreads,flush=True)
+        t0 = time.time()
         # Get threshold void properties for all the threshold values passed
         self.void_selected, self.ID_voro_dict, self.Xcm, self.Vol_interp, self.Ncells_in_void, self.ell_eigenvalues, self.ell_eigenvectors = voronoi_threshold(
             self.threshold,ID_core,neighbor_ptr,neighbor_ids,self.VoroXYZ,self.VoroVol,tracer_dens,nthreads=nthreads,verbose=verbose,max_num_part=max_num_part)
+        essentialprint('        main computation done:',StrHminSec(time.time()-t0),flush=True)
         
+
+        essentialprint('    angular and radial mask started.',flush=True)
+        t0 = time.time()
+
         self.ids_selected = dict()
         for ith in range(len(threshold)):
             nside = 128
             mask_ids = borders_mask_bruteforce(self.RAvoro, self.DECvoro, self.Ncells_in_void[:,ith], self.ID_voro_dict,nside)
             self.ids_selected[ith] = dist_limit_mask(mask_ids,self.Xcm[:,ith,:],self.comov_range[ith,0],self.comov_range[ith,1],
                                         self.VoroXYZ,self.Ncells_in_void[:,ith],self.ID_voro_dict) 
+        essentialprint('        done:',StrHminSec(time.time()-t0),flush=True)
+
         self.id_out = dict() 
         for ith in range(len(threshold)):
             self.id_out[ith] = dict() 
@@ -109,8 +131,6 @@ class voronoi_threshold_finder:
         self.wa=wa
         self.z_from_dist = None
         self.max_num_part = max_num_part
-
-
 
     def compute_overlaps(self,frac_ovlp,thresholds=None,ids_threshold=None):
         if (ids_threshold is None):
@@ -149,12 +169,17 @@ class voronoi_threshold_finder:
 
         if frac_ovlp < 1:
             if frac_ovlp not in self.id_out[ith].keys():
+                essentialprint = print if self.verbose_essential else lambda *a, **k: None
+                essentialprint('    select overlaps, frac_ovlp =',frac_ovlp,flush=True)
+                t0 = time.time()
+
                 ids_ovlp, Vol_ovlp, Vol_ovlp_frac, num_ovlps = overlapping_fraction(
                     self.Xcm[:,ith,:], self.Vol_interp[:,ith], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
-                    id_selected=self.ids_selected[ith],nthreads=1,verbose=self.verbose)
+                    id_selected=self.ids_selected[ith],nthreads=self.nthreads,verbose=self.verbose)
                 sor_by_vol = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1]
 
                 self.id_out[ith][frac_ovlp] = select_overlaps(frac_ovlp,self.ids_selected[ith],sor_by_vol, ids_ovlp, Vol_ovlp_frac, num_ovlps)
+                essentialprint('        done:',StrHminSec(time.time()-t0),flush=True)
             
             id_ovlp_out = self.ids_selected[ith][self.id_out[ith][frac_ovlp]]
         

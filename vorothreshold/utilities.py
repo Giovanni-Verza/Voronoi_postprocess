@@ -7,7 +7,15 @@ import excursion_set_functions as es
 import warnings
 
 __all__ = ['from_rRAdec_to_XYZ','from_rThetaPhi_to_XYZ','from_XYZ_to_rRAdec','from_RAdec_to_theta_phi',
-           'HubbleFactorNomalized','Inverse_HubbleFactorNomalized','ComovingDistanceOverh']
+           'HubbleFactorNomalized','Inverse_HubbleFactorNomalized','ComovingDistanceOverh','StrHminSec']
+
+
+def StrHminSec(DeltaT):
+    hh = int(DeltaT / 3600)
+    minutes = int(DeltaT / 60) - hh * 60
+    sec = DeltaT % 60
+    return str(hh) + ' h ' + str(minutes) + ' min ' + str(sec) + ' sec.'
+
 
 @jit(nopython=True)
 def from_rRAdec_to_XYZ(r,RA,dec):

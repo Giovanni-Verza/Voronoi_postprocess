@@ -291,11 +291,13 @@ def overlapping_fraction(
         id_selected = np.arange(vol_vds.shape[0])[vol_vds > 0.]
 
 
-    if nthreads <= 0:
-        try:
-            nthreads = int(os.environ["OMP_NUM_THREADS"])
-        except:
-            nthreads = get_num_threads()
+    try:
+        nthreads_tot = int(os.environ["OMP_NUM_THREADS"])
+    except:
+        nthreads_tot = get_num_threads()
+
+    if (nthreads <= 0) | (nthreads > nthreads_tot):
+        nthreads = nthreads_tot
 
     set_num_threads(min(nthreads,id_selected.shape[0]))
 
@@ -361,6 +363,8 @@ def overlapping_fraction(
     verboseprint("    done,",StrHminSec(dt),'\n',flush=True)
 
 
+    if nthreads_tot != get_num_threads():
+        set_num_threads(nthreads_tot)
 
     return ids_ovlp, Vol_ovlp, Vol_ovlp_frac, num_ovlps
 

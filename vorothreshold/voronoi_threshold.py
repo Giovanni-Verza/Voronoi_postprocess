@@ -4,15 +4,10 @@ import time
 from numba.core import types
 from numba.typed import Dict
 from numba import jit, prange, set_num_threads, get_num_threads, get_thread_id
+from . utilities import StrHminSec
 
 int_array = types.int64[::1]
 
-
-def StrHminSec(DeltaT):
-    hh = int(DeltaT / 3600)
-    minutes = int(DeltaT / 60) - hh * 60
-    sec = DeltaT % 60
-    return str(hh) + ' h ' + str(minutes) + ' min ' + str(sec) + ' sec.'
 
 @jit(nopython=True)
 def is_not_in_arr(ar1,ar2):
@@ -315,12 +310,13 @@ def voronoi_threshold(threshold,ID_core_arr,neighbor_ptr,neighbor_ids,VoroXYZ,Vo
 
     verboseprint = print if verbose else lambda *a, **k: None
     verboseprint('\n    voronoi_threshold started',flush=True)
+    try:
+        nthreads_tot = int(os.environ["OMP_NUM_THREADS"])
+    except:
+        nthreads_tot = get_num_threads()
 
-    if nthreads <= 0:
-        try:
-            nthreads = int(os.environ["OMP_NUM_THREADS"])
-        except:
-            nthreads = get_num_threads()
+    if (nthreads <= 0) | (nthreads > nthreads_tot):
+        nthreads = nthreads_tot
 
     Num_vds = ID_core_arr.shape[0]
     set_num_threads(min(nthreads,Num_vds))
@@ -362,6 +358,9 @@ def voronoi_threshold(threshold,ID_core_arr,neighbor_ptr,neighbor_ids,VoroXYZ,Vo
 
     dt = time.time() - t0
     verboseprint("    done,",StrHminSec(dt),'\n',flush=True)
+
+    if nthreads_tot != get_num_threads():
+        set_num_threads(nthreads_tot)
         
     return input_mask, ID_voro_dict, Xcm, Vol_interp, Ncells_in_void, ell_eigenvalues, ell_eigenvectors
 
