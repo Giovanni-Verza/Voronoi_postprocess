@@ -118,7 +118,7 @@ def overlapping_fraction_core(
         
 
 
-#@jit(nopython=True) #,parallel=True)
+@jit(nopython=True) #,parallel=True)
 def overlapping_fraction_loop(
     IDS_voids, id_soring, XYZ_voids, VolVoids, Ncells, max_dist_vds, Ids_voro_dict, voro_vol, ind_vox, ngrid, Lbox, voxel_side):
     Rmax = np.max(max_dist_vds)

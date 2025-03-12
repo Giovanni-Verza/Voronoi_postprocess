@@ -158,14 +158,8 @@ def cluster_accretion(
     IDnext = ID_core
     IDanchor = IDnext
     
-    #IDvoro_in_void = np.zeros(numPart,dtype=np.int_)
     ID_to_explore = np.zeros(numPart+2*np.max(neighbor_ptr[1:]-neighbor_ptr[:-1]),dtype=np.int_)
-    #ID_cluster = np.zeros(numPart,dtype=np.int_)
-    #Ncells_in_void = np.zeros(Nthresholds)
-    #Vol_interp = np.zeros(Nthresholds)
-    #Xcm_interp = np.zeros((Nthresholds,3))
-    #eigenvalues = np.zeros((Nthresholds,3))
-    #eigenvectors = np.zeros((Nthresholds,3,3))
+    
     shape_matrix = np.zeros((3,3))
 
 
@@ -194,8 +188,6 @@ def cluster_accretion(
             ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]][VtoCluster]
 
             Cond_innert = True
-            #ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = ID_to_explore[Nneighbors:Nneighbors+NtoAdd][
-            #    (np.argsort(VoroVol[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]] * zDens[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]])[::-1])]
             ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = ID_to_explore[Nneighbors:Nneighbors+NtoAdd][
                 (np.argsort(VoroVol[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]] * zDens[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]])[::-1])]
             inner_progr = 0
@@ -233,15 +225,12 @@ def cluster_accretion(
 
 
 
-        #if (Dens >= threshold[ith]): 
-        #print(ith,Ncells)
         VolPrevious = VolTot-VoroVol[IDvoro_in_void[Ncells-1]]
         numerator_dens_previous = numerator_dens - 1./zDens[IDvoro_in_void[Ncells-1]]
         frac = (threshold[ith] * VolPrevious - numerator_dens_previous) / (1. / zDens[IDvoro_in_void[Ncells-1]] - threshold[ith] * VoroVol[IDvoro_in_void[Ncells-1]])
         #if Ncells == numPart frac is forced to be 1
         frac *= int(Ncells < numPart) 
         frac += int(Ncells == numPart)
-        #print('    ',frac,int(Ncells == numPart))
         
         Vol_interp[ith] = VolPrevious + frac * VoroVol[IDvoro_in_void[Ncells-1]] 
         Ncells_in_void[ith] = Ncells -1 + frac 
@@ -264,7 +253,6 @@ def cluster_accretion(
                 shape_matrix[j,i] = shape_matrix[i,j]
 
         eigenvalues[ith,:], eigenvectors[ith,:,:] = np.linalg.eig(shape_matrix)
-    #IDvoro_in_void[:Ncells]
 
 
 

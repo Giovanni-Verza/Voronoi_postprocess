@@ -43,8 +43,6 @@ def compute_overlaps_all_parallel_compiled(
         ith = int(ii / Nfrac)
         ifrac = ii - ith * Nfrac
 
-        #print(ii,ith,ifrac)
-
         id_out_tmp = select_overlaps(frac_ovlp_arr[ifrac],ids_selected[ith],sor_by_vol[ith], ids_ovlp[ith], Vol_ovlp_frac[ith], num_ovlps[ith])
 
         len_ids_out[ii] = id_out_tmp.shape[0]
@@ -78,14 +76,13 @@ def compute_overlaps_all_parallel(
         value_type=int_array)
         
     for ith in range(Nthresholds):
-        print(ith,flush=True)
+        #print(ith,flush=True)
         ids_ovlp[ith], Vol_ovlp, Vol_ovlp_frac[ith], num_ovlps[ith]  = overlapping_fraction(
             Xcm[:,ids_threshold[ith],:], Vol_interp[:,ids_threshold[ith]], Ncells_in_void[:,ids_threshold[ith]], VoroXYZ, VoroVol, ID_voro_dict,
             id_selected=ids_selected[ids_threshold[ith]],nthreads=nthreads,verbose=verbose)
         sor_by_vol[ith] = (np.argsort(Vol_interp[ids_selected[ith],ith])[::-1]).astype(dtype=np.int_, order='C')
 
 
-    #print('parallel started',flush=True)
     id_out_dict, len_ids_out = compute_overlaps_all_parallel_compiled(
         Nthresholds, Nfrac, frac_ovlp_arr, ids_selected, sor_by_vol, ids_ovlp, Vol_ovlp_frac, num_ovlps)
     
@@ -217,7 +214,10 @@ class voronoi_threshold_finder:
         self.comov_dist = dict()
         self.redshift = dict()
 
-    def compute_overlaps(self,frac_ovlp,thresholds=None,ids_threshold=None):
+    def compute_overlaps(self,frac_ovlp,thresholds=None,ids_threshold=None,verbose=None):
+        if not (verbose is None):
+            self.verbose = verbose
+            self.verbose_essential = verbose
         if (ids_threshold is None):
             if thresholds is None:
                 thresholds = self.threshold
@@ -234,7 +234,7 @@ class voronoi_threshold_finder:
                 ids_ovlp, Vol_ovlp, Vol_ovlp_frac, num_ovlps = overlapping_fraction(
                     self.Xcm[:,ith,:], self.Vol_interp[:,ith], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
                     id_selected=self.ids_selected[ith],nthreads=self.nthreads,verbose=self.verbose)
-                sor_by_vol = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1]
+                sor_by_vol = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1].astype(dtype=np.int_, order='C')
                 self.id_out[ith][frac_ovlp] = select_overlaps(frac_ovlp,self.ids_selected[ith],sor_by_vol, ids_ovlp, Vol_ovlp_frac, num_ovlps)
                 #print('ith',ith,'ids_ovlp:',ids_ovlp.dtype, 'Vol_ovlp:',Vol_ovlp.dtype, 'Vol_ovlp_frac:',Vol_ovlp_frac.dtype, 'num_ovlps:',
                 #      num_ovlps.dtype,'sor_by_vol:',sor_by_vol.dtype,'self.id_out[ith][frac_ovlp]:',self.id_out[ith][frac_ovlp].dtype,flush=True)
@@ -257,7 +257,7 @@ class voronoi_threshold_finder:
     
             id_out_dict, len_ids_out = compute_overlaps_all_parallel(
                 ids_threshold,frac_ovlp_arr, self.Xcm, self.Vol_interp, self.Ncells_in_void, self.VoroXYZ, self.VoroVol, 
-                self.ID_voro_dict, ids_selected_numba, nthreads=self.nthreads, verbose=self.verbose)
+                self.ID_voro_dict, ids_selected_numba, nthreads=self.nthreads, verbose=verbose)
             
             for ii in range(Ncombo):
                 ith = int(ii / Nfrac)
@@ -305,25 +305,8 @@ class voronoi_threshold_finder:
             ids_ovlp[ith], Vol_ovlp, Vol_ovlp_frac[ith],num_ovlps[ith]  = overlapping_fraction(
                 self.Xcm[:,ith,:], self.Vol_interp[:,ith], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
                 id_selected=self.ids_selected[ith],nthreads=self.nthreads,verbose=self.verbose)
-            #sor_by_vol[ith] = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1]
-            #print('ids_ovlp:',out_tmp[0].dtype,out_tmp[0].shape)
-            #ids_ovlp[ith] = out_tmp[0]
-            #print('done\n')
-            #print('Vol_ovlp:',out_tmp[1].dtype,out_tmp[1].shape)
-            #Vol_ovlp = out_tmp[1]
-            #print('done\n')
-            #print('Vol_ovlp_frac:',out_tmp[2].dtype,out_tmp[2].shape)
-            #Vol_ovlp_frac[ith] = out_tmp[2]
-            #print('done\n')
-            #print('num_ovlps:',out_tmp[3].dtype,out_tmp[3].shape)
-            #num_ovlps[ith] = out_tmp[3]
-            #print('done\n')
-            #print('sor_by_vol:')
-            #sort_reordered = (np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1]).astype(dtype=np.int_, order='C')
-            #print('sor_by_vol:',sort_reordered.dtype,sort_reordered.shape,sort_reordered.flags['C_CONTIGUOUS'])
+            
             sor_by_vol[ith] = (np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1]).astype(dtype=np.int_, order='C')
-            #print('done\n')
-            #print('check:',np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1]-sor_by_vol[ith])
 
             for ifrac in range(Nfrac):
                 id_out_dict[ith * Nfrac + ifrac] = np.empty(sor_by_vol[ith].shape[0],dtype=np.int_)
@@ -349,7 +332,10 @@ class voronoi_threshold_finder:
         
 
     # return values
-    def get_values(self,threshold,key,frac_ovlp=1):
+    def get_values(self,threshold,key,frac_ovlp=1,verbose=None):
+        if not (verbose is None):
+            self.verbose_essential = verbose
+            self.verbose = verbose
         
         all_keys = ['Ncells','ID_original_sample','id_selected','xyz','RA','DEC','redshift','volume','comov_dist',
                     'radius','ell_eigenvalues','ell_eigenvectors','central_dens','id_wrt_all']
@@ -372,7 +358,7 @@ class voronoi_threshold_finder:
                 ids_ovlp, Vol_ovlp, Vol_ovlp_frac, num_ovlps = overlapping_fraction(
                     self.Xcm[:,ith,:], self.Vol_interp[:,ith], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
                     id_selected=self.ids_selected[ith],nthreads=self.nthreads,verbose=self.verbose)
-                sor_by_vol = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1]
+                sor_by_vol = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1].astype(dtype=np.int_,order='C')
 
                 self.id_out[ith][frac_ovlp] = select_overlaps(frac_ovlp,self.ids_selected[ith],sor_by_vol, ids_ovlp, Vol_ovlp_frac, num_ovlps)
                 essentialprint('        done:',StrHminSec(time.time()-t0),flush=True)

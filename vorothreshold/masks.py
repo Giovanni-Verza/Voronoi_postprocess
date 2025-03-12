@@ -15,12 +15,9 @@ def borders_mask_bruteforce(RAvoro,DECvoro,Ncells,ID_voro_dict,nside):
     mask_pix[pix] = 1.
 
     id_selected = np.arange(Ncells.shape[0])[Ncells >= 1]
-    #print(Ncells)
-    #print(id_selected)
     mask_vds = np.ones(id_selected.shape[0],dtype=np.bool_)
     #mask_vds[id_selected] = True
     for i in range(id_selected.shape[0]):
-        #print(i)
         iv = id_selected[i]
         Ncells_loop = int(Ncells[iv]) + int((Ncells[iv]%1) > 0)
         phi_voro = np.pi/180. * RAvoro[ID_voro_dict[iv][:Ncells_loop]]
@@ -71,7 +68,6 @@ def borders_mask(xyz_cm,max_ang_dist,RAvoro,DECvoro,Ncells,ID_voro_dict,nside):
 
 
 
-#def dist_limit_mask(id_selected,xyz_cm,max_dist_from_cm,dist_min,dist_max,xyz_voro,Ncells,ID_voro_dict):
 @jit(nopython=True)
 def dist_limit_mask(id_selected,xyz_cm,dist_min,dist_max,xyz_voro,Ncells,ID_voro_dict):
 
@@ -81,25 +77,19 @@ def dist_limit_mask(id_selected,xyz_cm,dist_min,dist_max,xyz_voro,Ncells,ID_voro
     dist_max2 = dist_max * dist_max
     dist_min2 = dist_min * dist_min
     mask_out = np.ones(id_selected.shape[0],dtype=np.bool_)
-    #print(ID_voro_dict.keys())
-    #print(id_selected)
+    
     for i in range(id_selected.shape[0]):
-        #print(i)
         iv = id_selected[i]
         if (dist_cm[i] + max_dist_from_cm[iv]) > dist_max:
             Ncells_loop = int(Ncells[iv]) + int((Ncells[iv]%1) > 0)
-            #for ii in range(Ncells_loop):
             ii = 0
             while (ii < Ncells_loop) & mask_out[i]:
-                #print(i,iv,ii,Ncells[iv],Ncells_loop,ID_voro_dict[iv].shape)
-                #print('    ',ID_voro_dict[iv][ii])
                 mask_out[i] = np.sum(np.square(xyz_voro[ID_voro_dict[iv][ii],:])) < dist_max2
                 ii += 1
                 #if np.sum(np.square(xyz_voro[ID_voro_dict[iv][ii],:])) > dist_max2:
                 #    mask_out[i] = False
 
         if (dist_cm[i] - max_dist_from_cm[iv]) < dist_min:
-            #print(iv)
             Ncells_loop = int(Ncells[iv]) + int((Ncells[iv]%1) > 0)
             ii = 0
             while (ii < Ncells_loop) & mask_out[i]:
