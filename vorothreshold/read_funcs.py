@@ -1,4 +1,4 @@
-
+import glob
 import numpy as np
 import struct
 from netCDF4 import Dataset
@@ -84,11 +84,16 @@ def read_adjfile(adjfile):
         
 
 
-def read_voronoi_vide(vide_out,fullName):
+def read_voronoi_vide(vide_out,sample_name=None):
 
+    if sample_name is None:
+        infoFile = glob.glob(vide_out+'/zobov_slice_*')[0]
+        sample_name = infoFile.replace(vide_out+'/zobov_slice_','').replace('.par','')
+    else:
+        infoFile = vide_out+"/zobov_slice_"+sample_name+".par"
 
     # load box and part info
-    infoFile = vide_out+"/zobov_slice_"+fullName+".par"
+    
     File = Dataset(infoFile, 'r')
     ranges = np.zeros((3,2))
     ranges[0][0] = getattr(File, 'range_x_min')
@@ -105,13 +110,13 @@ def read_voronoi_vide(vide_out,fullName):
 
 
     # load Voronoi volume (unnormalized)
-    volFile = vide_out+"/vol_"+fullName+".dat"
+    volFile = vide_out+"/vol_"+sample_name+".dat"
     with open(volFile, mode="rb") as File:
         chk = np.fromfile(File, dtype=np.int32,count=1)
         vols = np.fromfile(File, dtype=np.float32,count=numPartTot)
 
     # load Voronoi coords
-    partFile = vide_out+"/zobov_slice_"+fullName
+    partFile = vide_out+"/zobov_slice_"+sample_name
     with open(partFile, mode="rb") as File:
         chk = np.fromfile(File, dtype=np.int32,count=1)
         # Np from zobov_slice_ e' diverso da vu.loadPart(vide_out)
@@ -182,8 +187,12 @@ class update_dict:
 
 
 class voro_in_vide_voids:
-    def __init__(self,vide_out,fullName,dataPortion="all",untrimmed=True):
-        zoneFile = vide_out+"/voidZone_"+fullName+".dat"
+    def __init__(self,vide_out,sample_name=None,dataPortion="all",untrimmed=True):
+        if sample_name is None:
+            zoneFile = glob.glob(vide_out+'/voidZone_*')[0]
+            sample_name = zoneFile.replace(vide_out+'/voidZone_','').replace('.dat','')
+        else:
+            zoneFile = vide_out+"/voidZone_"+sample_name+".dat"
         void2Zones = []
         with open(zoneFile, mode="rb") as File:
             numZonesTot = np.fromfile(File, dtype=np.int32,count=1)[0]
@@ -199,7 +208,7 @@ class voro_in_vide_voids:
 
 
         #print("Loading particle-zone membership info...")
-        zonePartFile = vide_out+"/voidPart_"+fullName+".dat"
+        zonePartFile = vide_out+"/voidPart_"+sample_name+".dat"
         zones2Parts = []
         with open(zonePartFile) as File:
             chk = np.fromfile(File, dtype=np.int32,count=1)
@@ -219,7 +228,7 @@ class voro_in_vide_voids:
         else:
             prefix = ""
 
-        self.voidID = np.loadtxt(vide_out+"/"+prefix+"voidDesc_"+dataPortion+"_"+fullName+".out", comments="#", skiprows=2)[:,1].astype(np.int_)
+        self.voidID = np.loadtxt(vide_out+"/"+prefix+"voidDesc_"+dataPortion+"_"+sample_name+".out", comments="#", skiprows=2)[:,1].astype(np.int_)
 
     def get_voro_from_uniqueID(self,voidID):
 
@@ -247,11 +256,16 @@ class voro_in_vide_voids:
 
 
 
-def vide_voids_cat(vide_out_dir,fullName,dataPortion='all',untrimmed=True,as_dict=True,values_out=None):
+def vide_voids_cat(vide_out_dir,sample_name,dataPortion='all',untrimmed=True,as_dict=True,values_out=None):
     if untrimmed:
         prefix = "untrimmed_"
     else:
         prefix = ""
+    if sample_name is None:
+        path_test = vide_out_dir+"/"+prefix+"centers_"+dataPortion+"_"+sample_name+".out"
+        center_file = glob.glob(path_test+'*')[0]
+        sample_name = center_file.replace(path_test,'').replace('.out','')
+        
     keys_center = ['barycenter','volume_norm','radius','redshift','volume','voidID','dens_contr','num_part',
                 'parent_ID','tree_level','num_children','central_dens']
     keys_sky = ['RA','DEC']
@@ -319,7 +333,7 @@ def vide_voids_cat(vide_out_dir,fullName,dataPortion='all',untrimmed=True,as_dic
 
     dict_out = dict()
     if do_center:
-        catData = np.loadtxt(vide_out_dir+"/"+prefix+"centers_"+dataPortion+"_"+fullName+".out", comments="#")
+        catData = np.loadtxt(vide_out_dir+"/"+prefix+"centers_"+dataPortion+"_"+sample_name+".out", comments="#")
         # center x,y,z (Mpc/h), volume (normalized), radius (Mpc/h), redshift, volume (Mpc/h^3), void ID, density contrast, num part, parent ID, tree level, number of children, central density
 
         dict_out['barycenter'] = catData[:,:3]
@@ -336,7 +350,7 @@ def vide_voids_cat(vide_out_dir,fullName,dataPortion='all',untrimmed=True,as_dic
         dict_out['central_dens'] = catData[:,13]
 
     if do_sky:
-        catData = np.loadtxt(vide_out_dir+"/"+prefix+"sky_positions_"+dataPortion+"_"+fullName+".out")
+        catData = np.loadtxt(vide_out_dir+"/"+prefix+"sky_positions_"+dataPortion+"_"+sample_name+".out")
         dict_out['RA'] = catData[:,0]
         dict_out['DEC'] = catData[:,1]
 
@@ -346,7 +360,7 @@ def vide_voids_cat(vide_out_dir,fullName,dataPortion='all',untrimmed=True,as_dic
         #'file_void','core_ID','core_dens','zone_vol','zone_part', 'void_prob'
         #ID FileVoid# CoreParticle CoreDens ZoneVol Zone#Part Void#Zones VoidVol Void#Part VoidDensContrast VoidProb
 
-        catData = np.loadtxt(vide_out_dir+"/"+prefix+"voidDesc_"+dataPortion+"_"+fullName+".out", comments="#", skiprows=2)
+        catData = np.loadtxt(vide_out_dir+"/"+prefix+"voidDesc_"+dataPortion+"_"+sample_name+".out", comments="#", skiprows=2)
 
         dict_out['file_void'] = catData[:,1].astype(np.int_)
         dict_out['core_ID'] = catData[:,2].astype(np.int_)
@@ -360,7 +374,7 @@ def vide_voids_cat(vide_out_dir,fullName,dataPortion='all',untrimmed=True,as_dic
         
 
     if do_core:
-        voro_id, VolCell, VoroXYZ, RAvoro, DECvoro, redshift_voro = read_voronoi_vide(vide_out_dir,fullName)
+        voro_id, VolCell, VoroXYZ, RAvoro, DECvoro, redshift_voro = read_voronoi_vide(vide_out_dir,sample_name)
         del voro_id, VolCell
 
         dict_out['core_pos'] = VoroXYZ[dict_out['core_ID'],:]
@@ -372,7 +386,7 @@ def vide_voids_cat(vide_out_dir,fullName,dataPortion='all',untrimmed=True,as_dic
 
 
     if do_shape:
-        fileName = vide_out_dir+"/"+prefix+"shapes_"+dataPortion+"_"+fullName+".out"
+        fileName = vide_out_dir+"/"+prefix+"shapes_"+dataPortion+"_"+sample_name+".out"
 
         ellipticity = np.loadtxt(fileName, comments="#")[:,1:14]
         dict_out['ellip'] = ellipticity[:,0]
@@ -382,7 +396,7 @@ def vide_voids_cat(vide_out_dir,fullName,dataPortion='all',untrimmed=True,as_dic
         dict_out['eigenvec3'] = ellipticity[:,10:13]
         del ellipticity
     if do_info:
-        infoFile = vide_out_dir+"/zobov_slice_"+fullName+".par"
+        infoFile = vide_out_dir+"/zobov_slice_"+sample_name+".par"
 
         File = Dataset(infoFile, 'r')
         dict_out['num_part_tot'] = getattr(File, 'mask_index')

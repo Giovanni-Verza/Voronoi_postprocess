@@ -212,6 +212,10 @@ class voronoi_threshold_finder:
         self.wa=wa
         self.z_from_dist = None
         self.max_num_part = max_num_part
+        self.RA = dict()
+        self.DEC = dict()
+        self.comov_dist = dict()
+        self.redshift = dict()
 
     def compute_overlaps(self,frac_ovlp,thresholds=None,ids_threshold=None):
         if (ids_threshold is None):
@@ -345,7 +349,7 @@ class voronoi_threshold_finder:
         
 
     # return values
-    def get_values(self,threshold,key,frac_ovlp):
+    def get_values(self,threshold,key,frac_ovlp=1):
         
         all_keys = ['Ncells','ID_original_sample','id_selected','xyz','RA','DEC','redshift','volume','comov_dist',
                     'radius','ell_eigenvalues','ell_eigenvectors','central_dens','id_wrt_all']
@@ -408,21 +412,51 @@ class voronoi_threshold_finder:
         
         if key == 'RA':
             # Right ascension of the volume weighted baricenter
-            return from_XYZ_to_rRAdec(self.Xcm[id_ovlp_out,ith,:])[:,1]
+            if not (ith in self.RA.keys()):
+                self.comov_dist[ith], self.RA[ith], self.DEC[ith] = from_XYZ_to_rRAdec(self.Xcm[self.ids_selected[ith],ith,0],
+                                                                                       self.Xcm[self.ids_selected[ith],ith,1],
+                                                                                       self.Xcm[self.ids_selected[ith],ith,2])
+            if frac_ovlp < 1:
+                return self.RA[ith][self.id_out[ith][frac_ovlp]]
+            else:
+                return self.RA[ith]
         
         if key == 'DEC':
             # Declination of the volume weighted baricenter
-            return from_XYZ_to_rRAdec(self.Xcm[id_ovlp_out,ith,:])[:,2]
+            if not (ith in self.DEC.keys()):
+                self.comov_dist[ith], self.RA[ith], self.DEC[ith] = from_XYZ_to_rRAdec(self.Xcm[self.ids_selected[ith],ith,0],
+                                                                                       self.Xcm[self.ids_selected[ith],ith,1],
+                                                                                       self.Xcm[self.ids_selected[ith],ith,2])
+            if frac_ovlp < 1:
+                return self.DEC[ith][self.id_out[ith][frac_ovlp]]
+            else:
+                return self.DEC[ith]
         
         if key == 'comov_dist':
             # Comoving distance of the volume weighted baricenter
-            return from_XYZ_to_rRAdec(self.Xcm[id_ovlp_out,ith,:])[:,0]
+            if not (ith in self.comov_dist.keys()):
+                self.comov_dist[ith], self.RA[ith], self.DEC[ith] = from_XYZ_to_rRAdec(self.Xcm[self.ids_selected[ith],ith,0],
+                                                                                       self.Xcm[self.ids_selected[ith],ith,1],
+                                                                                       self.Xcm[self.ids_selected[ith],ith,2])
+            if frac_ovlp < 1:
+                return self.comov_dist[ith][self.id_out[ith][frac_ovlp]]
+            else:
+                return self.comov_dist[ith]
         
         if key == 'redshift':
             # Redshift of the volume weighted baricenter
             if self.z_from_dist is None:
                 self.z_from_dist = RedshiftFromComovingDistanceOverh(self.OmegaM,self.w0,self.wa)
-            return self.z_from_dist.get_redshift(from_XYZ_to_rRAdec(self.Xcm[id_ovlp_out,ith,:])[:,0])
+            if not (ith in self.redshift.keys()):
+                if not (ith in self.comov_dist.keys()):
+                    self.comov_dist[ith], self.RA[ith], self.DEC[ith] = from_XYZ_to_rRAdec(self.Xcm[self.ids_selected[ith],ith,0],
+                                                                                           self.Xcm[self.ids_selected[ith],ith,1],
+                                                                                           self.Xcm[self.ids_selected[ith],ith,2])
+                self.redshift[ith] = self.z_from_dist.get_redshift(self.comov_dist[ith])
+            if frac_ovlp < 1:
+                return self.redshift[ith][self.id_out[ith][frac_ovlp]]
+            else:
+                return self.redshift[ith]
         
         if key == 'volume':
             # Void volumes

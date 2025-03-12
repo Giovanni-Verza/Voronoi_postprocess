@@ -305,6 +305,9 @@ def overlapping_fraction(
 
 
     R_max = compute_max_dist2(Ncells,xyz_vds,xyz_voro,id_selected,IDs_in_voids)**0.5
+    #print('R_max:',R_max,flush=True)
+    #print('xyz_vds:',xyz_vds[id_selected],flush=True)
+    #print('IDs_in_voids:',IDs_in_voids,flush=True)
 
 
     verboseprint('\n    R_max computed. Max val =',(np.max(R_max)),flush=True)

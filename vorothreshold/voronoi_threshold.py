@@ -26,7 +26,7 @@ def is_in_arr(ar1,ar2):
 
 
 @jit(nopython=True)
-def cluster_accretion(IDthresholds,ID_core,numPart,neighbor_ptr,neighbor_ids,Nthresholds,threshold,VoroXYZ,VoroVol,zDens):
+def cluster_accretion_OLD(IDthresholds,ID_core,numPart,neighbor_ptr,neighbor_ids,Nthresholds,threshold,VoroXYZ,VoroVol,zDens):
     #print(i_progr,flush=True)
     
     IDnext = ID_core
@@ -68,6 +68,7 @@ def cluster_accretion(IDthresholds,ID_core,numPart,neighbor_ptr,neighbor_ids,Nth
             VtoCluster = is_not_in_arr(neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]],ID_to_explore[:Nneighbors])
             VtoCluster &= is_not_in_arr(neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]],IDthresholds[:Ncells+1])
             NtoAdd = np.sum(VtoCluster)
+            #ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]][VtoCluster]
             ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]][VtoCluster]
             #for ii in ID_to_explore[Nneighbors:Nneighbors+NtoAdd]:
             #    ax.plot(VoroXYZ[[IDanchor,ii],0],VoroXYZ[[IDanchor,ii],1],VoroXYZ[[IDanchor,ii],2],lw=1,c=CC)
@@ -158,8 +159,8 @@ def cluster_accretion(
     IDanchor = IDnext
     
     #IDvoro_in_void = np.zeros(numPart,dtype=np.int_)
-    ID_to_explore = np.zeros(numPart,dtype=np.int_)
-    ID_cluster = np.zeros(numPart,dtype=np.int_)
+    ID_to_explore = np.zeros(numPart+2*np.max(neighbor_ptr[1:]-neighbor_ptr[:-1]),dtype=np.int_)
+    #ID_cluster = np.zeros(numPart,dtype=np.int_)
     #Ncells_in_void = np.zeros(Nthresholds)
     #Vol_interp = np.zeros(Nthresholds)
     #Xcm_interp = np.zeros((Nthresholds,3))
@@ -170,7 +171,7 @@ def cluster_accretion(
 
     Ncells = 0
     ID_to_explore[0] = IDanchor
-    ID_cluster[0] = IDnext
+    #ID_cluster[0] = IDnext
 
     IDvoro_in_void[Ncells] = IDnext
     Ncells = 1
@@ -193,6 +194,8 @@ def cluster_accretion(
             ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]][VtoCluster]
 
             Cond_innert = True
+            #ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = ID_to_explore[Nneighbors:Nneighbors+NtoAdd][
+            #    (np.argsort(VoroVol[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]] * zDens[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]])[::-1])]
             ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = ID_to_explore[Nneighbors:Nneighbors+NtoAdd][
                 (np.argsort(VoroVol[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]] * zDens[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]])[::-1])]
             inner_progr = 0
@@ -231,14 +234,17 @@ def cluster_accretion(
 
 
         #if (Dens >= threshold[ith]): 
+        #print(ith,Ncells)
         VolPrevious = VolTot-VoroVol[IDvoro_in_void[Ncells-1]]
         numerator_dens_previous = numerator_dens - 1./zDens[IDvoro_in_void[Ncells-1]]
         frac = (threshold[ith] * VolPrevious - numerator_dens_previous) / (1. / zDens[IDvoro_in_void[Ncells-1]] - threshold[ith] * VoroVol[IDvoro_in_void[Ncells-1]])
-        #if frac == 0:
-        #    print(ID_core,'Ncells:',Ncells,'VolPrevious:',VolPrevious,'VolTot:',VolTot,'VolLast:',VoroVol[IDvoro_in_void[Ncells-1]],
-        #          'numerator_dens_previous:',numerator_dens_previous,'numerator_dens:',numerator_dens,'numerator_dens_last:',1./zDens[IDvoro_in_void[Ncells-1]],flush=True)
-        Vol_interp[ith] = VolPrevious + frac * VoroVol[IDvoro_in_void[Ncells-1]]
-        Ncells_in_void[ith] = Ncells-1+frac
+        #if Ncells == numPart frac is forced to be 1
+        frac *= int(Ncells < numPart) 
+        frac += int(Ncells == numPart)
+        #print('    ',frac,int(Ncells == numPart))
+        
+        Vol_interp[ith] = VolPrevious + frac * VoroVol[IDvoro_in_void[Ncells-1]] 
+        Ncells_in_void[ith] = Ncells -1 + frac 
 
         Coord_norm = np.sum(1. / (VoroVol[IDvoro_in_void[:Ncells-1]] * zDens[IDvoro_in_void[:Ncells-1]])) +  1. / (frac * VoroVol[IDvoro_in_void[Ncells-1]] * zDens[IDvoro_in_void[Ncells-1]])
         Xcm_interp[ith,0] = (np.sum(VoroXYZ[IDvoro_in_void[:Ncells-1],0] / (VoroVol[IDvoro_in_void[:Ncells-1]] * zDens[IDvoro_in_void[:Ncells-1]])) + 
