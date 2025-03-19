@@ -189,6 +189,51 @@ def cubic_spline_coeffs(x,y):
 
 
 @jit(nopython=True)
+def get_values_sorted(x_eval,x,coeffs):
+    len_out = len(x_eval)
+    len_x = len(x)
+    y_out = np.empty(len_out)
+    delta_x = 0.
+    t = 0.
+    i_out=0
+    len_x_mn2 = len_x - 2
+    
+    for i in range(0,len_out):
+        while ((x_eval[i] >= x[i_out+1]) & (i_out < len_x_mn2)):
+            i_out += 1
+                
+        delta_x = x[i_out+1] - x[i_out]
+        t = (x_eval[i] - x[i_out]) / delta_x
+        y_out[i] = coeffs[i_out,0] + \
+                   coeffs[i_out,1] * t + \
+                   coeffs[i_out,2] * t * t + \
+                   coeffs[i_out,3] * t * t * t
+    return y_out
+
+@jit(nopython=True)
+def get_values(x_eval,x,coeffs):
+    len_out = len(x_eval)
+    len_x = len(x)
+    y_out = np.empty(len_out)
+    delta_x = 0.
+    t = 0.
+    i_out=0
+    len_x_mn2 = len_x - 2
+    
+    ID = np.argsort(x_eval)
+    for i in ID:
+        while ((x_eval[i] >= x[i_out+1]) & (i_out < len_x_mn2)):
+            i_out += 1
+                
+        delta_x = x[i_out+1] - x[i_out]
+        t = (x_eval[i] - x[i_out]) / delta_x
+        y_out[i] = coeffs[i_out,0] + \
+                   coeffs[i_out,1] * t + \
+                   coeffs[i_out,2] * t * t + \
+                   coeffs[i_out,3] * t * t * t
+    return y_out
+
+@jit(nopython=True)
 def get_integral_scalar_array(x1, x_eval, x, coeffs):
     len_out = x_eval.shape[0]
     y_out = np.empty(len_out)
@@ -235,6 +280,9 @@ def get_integral_scalar_array(x1, x_eval, x, coeffs):
                                           coeffs[i_out][2] * t * t * t / 3. + 
                                           coeffs[i_out][3] * t * t * t * t / 4.) * delta_x - integr_offset
     return y_out
+
+
+
 
 
 class ComovingDistanceOverh:
@@ -290,11 +338,11 @@ class RedshiftFromComovingDistanceOverh:
             warnings.warn('some input values are out the inizialization interval: '+str(self.dist_min)+' to '+str(self.dist_max)+
                           '.\nFor comoving distance values out of initialization range the results may be inaccurate.') 
 
-    def get_redshift(self,x):
+    def get_redshift(self,x,sorted=False):
         if self.check_all:
             self.check_range(x)
-        return get_integral_scalar_array(0., x, self.comov_arr, self.coeffs) 
+        if sorted:
+            return get_values_sorted(x, self.comov_arr, self.coeffs) 
+        return get_values(x, self.comov_arr, self.coeffs) 
     
 
-
-    

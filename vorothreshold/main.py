@@ -91,7 +91,7 @@ def compute_overlaps_all_parallel(
 
 class voronoi_threshold_finder:
     def __init__(self,threshold,lightcone=True,ID_core=None,neighbor_ptr=None,neighbor_ids=None,VoroXYZ=None,VoroVol=None,tracer_dens=None,
-                 vide_path=None,comov_range=None,z_range=None,OmegaM=None,w0=-1.,wa=1.,nthreads=-1,verbose=False,verbose_essential=True,max_num_part=-1):
+                 vide_path=None,comov_range=None,z_range=None,OmegaM=None,w0=-1.,wa=0.,nthreads=-1,verbose=False,verbose_essential=True,max_num_part=-1):
         
         if verbose:
             verbose_essential = True
