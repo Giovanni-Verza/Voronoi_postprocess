@@ -233,7 +233,7 @@ class voronoi_threshold_finder:
                 verboseprint('    ang_paddig_rad =',ang_paddig_rad,'npadding_ang =',npadding_ang,flush=True)
 
             #mask_ids = borders_mask_bruteforce(self.RAvoro, self.DECvoro, self.Ncells_in_void[:,ith], self.ID_voro_dict,nside)
-            mask_ids, mask_voro, self.healpix_mask[ith] = borders_mask(mask_pix,self.RAvoro,self.DECvoro,self.ID_voro_dict,self.Ncells_in_void[:,ith],npadding_ang)
+            mask_ids, mask_voro, self.healpix_mask[ith] = borders_mask(mask_pix,self.RAvoro,self.DECvoro,self.ID_voro_dict,self.Ncells_in_void[:,ith],npadding_ang,nthreads=nthreads)
             self.ids_selected[ith] = dist_limit_mask(mask_ids,self.Xcm[:,ith,:],self.comov_range[ith,0],self.comov_range[ith,1],
                                         self.VoroXYZ,self.Ncells_in_void[:,ith],self.ID_voro_dict) 
         verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)

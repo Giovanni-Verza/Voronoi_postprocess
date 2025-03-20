@@ -353,7 +353,7 @@ def voronoi_threshold(threshold,ID_core_arr,neighbor_ptr,neighbor_ids,VoroXYZ,Vo
     dt = time.time() - t0
     verboseprint("    done,",StrHminSec(dt),'\n',flush=True)
 
-    if nthreads_tot != get_num_threads():
+    if nthreads != nthreads_tot:
         set_num_threads(nthreads_tot)
         
     return input_mask, ID_voro_dict, Xcm, Vol_interp, Ncells_in_void, ell_eigenvalues, ell_eigenvectors

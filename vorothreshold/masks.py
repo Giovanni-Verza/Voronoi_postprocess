@@ -81,12 +81,12 @@ def borders_mask(mask_pix_bool,RAvoro,DECvoro,ID_voro_dict,Ncells,padding_npix,n
     if (nthreads <= 0) | (nthreads > nthreads_tot):
         nthreads = nthreads_tot
     else:
-        set_num_threads(min(nthreads,Num_vds))
+        set_num_threads(nthreads)
 
     mask_voro, mask_pix_border = ids_pix_noborder_RADEC(mask_pix_bool,RAvoro,DECvoro,padding_npix)
     id_selected = borders_mask_inner(mask_voro,ID_voro_dict,Ncells)
 
-    if nthreads_tot != get_num_threads():
+    if nthreads != nthreads_tot:
         set_num_threads(nthreads_tot)
 
     return id_selected, mask_voro, mask_pix_border
