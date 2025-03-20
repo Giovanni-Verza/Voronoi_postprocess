@@ -489,7 +489,7 @@ class voronoi_threshold_finder:
 
         elif key == 'angular_mask':
             # heapix mask for Voronoi cells
-            return self.healpix_mask[ith]
+            return self.healpix_mask[ith].astype(np.float32)
 
         elif key == 'comov_range':
             # comoving range for Voronoi cells
