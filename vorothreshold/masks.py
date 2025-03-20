@@ -50,7 +50,7 @@ def ids_pix_noborder(mask_pix_bool,theta_voro,phi_voro,padding_npix):
             mask_pix_border[ipix] = (np.sum(mask_pix_border_old[i_neigh]) == i_neigh.shape[0])
 
 
-    return mask_pix_border[hp.ang2pix(nside, theta_voro, phi_voro)]
+    return mask_pix_border[hp.ang2pix(nside, theta_voro, phi_voro)], mask_pix_border
 
 
 def ids_pix_noborder_RADEC(mask_pix_bool,RAvoro,DECvoro,padding_npix):
@@ -72,8 +72,8 @@ def borders_mask_inner(mask_voro,ID_voro_dict,Ncells):
 
 
 def borders_mask(mask_pix_bool,RAvoro,DECvoro,ID_voro_dict,Ncells,padding_npix):
-    mask_voro = ids_pix_noborder_RADEC(mask_pix_bool,RAvoro,DECvoro,padding_npix)
-    return borders_mask_inner(mask_voro,ID_voro_dict,Ncells), mask_voro
+    mask_voro, mask_pix_border = ids_pix_noborder_RADEC(mask_pix_bool,RAvoro,DECvoro,padding_npix)
+    return borders_mask_inner(mask_voro,ID_voro_dict,Ncells), mask_voro, mask_pix_border
 
 
 def borders_mask_OLD(xyz_cm,max_ang_dist,RAvoro,DECvoro,Ncells,ID_voro_dict,nside):

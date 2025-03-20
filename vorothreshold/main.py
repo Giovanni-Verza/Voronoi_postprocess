@@ -98,6 +98,7 @@ class voronoi_threshold_finder:
         if verbose:
             verbose = True
         self.verbose = verbose
+        self.z_from_dist = None
 
         
         verboseprint = print if verbose else lambda *a, **k: None
@@ -172,14 +173,15 @@ class voronoi_threshold_finder:
             if (neighbor_ptr is None) or (neighbor_ids is None):
                 raise ValueError('VTF not passed. Either pass neighbor_ptr and neighbor_ids or vide_path.')
 
+        if (not (comov_range is None)) & (not (z_range is None)) & (lightcone):
+            raise Warning('both comov_range and z_range are passed, only comov_range will be considered.')
         if (comov_range is None) & (z_range is None) & (lightcone):
             i_min = np.argmin(dist_voro)
             i_max = np.argmax(dist_voro)
             comov_range = [tracer_dens[i_min] + 3.5 * (tracer_dens[i_min] ** (-1./3.)),
                            tracer_dens[i_max] - 3.5 * (tracer_dens[i_max] ** (-1./3.))]
             raise ValueError('comov_range and z_range are both None. One of them is required when lightcone = True.')
-        if (not (comov_range is None)) & (not (z_range is None)) & (lightcone):
-            raise Warning('both comov_range and z_range are passed, only comov_range will be considered.')
+            raise ValueError('comov_range and z_range are both None. One of them is required when lightcone = True.')
         if (comov_range is None):
             comov_range = dist_z.get_dist(np.array(z_range))
        
@@ -212,7 +214,7 @@ class voronoi_threshold_finder:
         for ith in range(len(threshold)):
             if ang_paddig_rad is None:
                 trs_mask = (dist_voro >= self.comov_range[ith,0]) & (dist_voro <= self.comov_range[ith,1])
-                ang_paddig_rad = 3.5 * np.max(tracer_dens[trs_mask]**(-1./3.) / dist_voro[trs_mask])
+                ang_paddig_rad = 2. * np.max(tracer_dens[trs_mask]**(-1./3.) / dist_voro[trs_mask])
             if ith == 0:
                 try:
                     mask_pix = hp.read_map(vide_path + '/mask_map.fits')
@@ -231,7 +233,7 @@ class voronoi_threshold_finder:
                 verboseprint('    ang_paddig_rad =',ang_paddig_rad,'npadding_ang =',npadding_ang,flush=True)
 
             #mask_ids = borders_mask_bruteforce(self.RAvoro, self.DECvoro, self.Ncells_in_void[:,ith], self.ID_voro_dict,nside)
-            mask_ids, self.healpix_mask[ith] = borders_mask(mask_pix,self.RAvoro,self.DECvoro,self.ID_voro_dict,self.Ncells_in_void[:,ith],npadding_ang)
+            mask_ids, mask_voro, self.healpix_mask[ith] = borders_mask(mask_pix,self.RAvoro,self.DECvoro,self.ID_voro_dict,self.Ncells_in_void[:,ith],npadding_ang)
             self.ids_selected[ith] = dist_limit_mask(mask_ids,self.Xcm[:,ith,:],self.comov_range[ith,0],self.comov_range[ith,1],
                                         self.VoroXYZ,self.Ncells_in_void[:,ith],self.ID_voro_dict) 
         verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
@@ -243,12 +245,13 @@ class voronoi_threshold_finder:
         self.OmegaM=OmegaM
         self.w0=w0
         self.wa=wa
-        self.z_from_dist = None
         self.max_num_part = max_num_part
         self.RA = dict()
         self.DEC = dict()
         self.comov_dist = dict()
         self.redshift = dict()
+        self.z_from_dist = RedshiftFromComovingDistanceOverh(self.OmegaM,self.w0,self.wa)
+        self.z_range = self.z_from_dist.get_redshift(self.comov_range.reshape(-1)).reshape(self.comov_range.shape)
 
     def compute_overlaps(self,frac_ovlp,thresholds=None,ids_threshold=None,verbose=None):
         if not (verbose is None):
@@ -373,16 +376,6 @@ class voronoi_threshold_finder:
             self.verbose = verbose
             self.verbose = verbose
         
-        all_keys = ['Ncells','ID_original_sample','id_selected','xyz','RA','DEC','redshift','volume','comov_dist',
-                    'radius','ell_eigenvalues','ell_eigenvectors','central_dens','id_wrt_all']
-        
-        if not (key in all_keys):
-            all_k_str = ''
-            for k_ok in all_keys:
-                all_k_str += k_ok+', '
-            
-            raise ValueError(key + ' key unknown. Available keys: '+all_k_str[:-2])
-        
         ith = (np.arange(len(self.threshold))[self.threshold == threshold])[0]
 
         if frac_ovlp < 1:
@@ -412,27 +405,27 @@ class voronoi_threshold_finder:
             # number of voronoi cells contained in each void. Thei are flat as the only a fraction of the last voronoi volume is considered.
             return self.Ncells_in_void[id_ovlp_out,ith]
         
-        if key == 'ID_original_sample':
+        elif key == 'ID_original_sample':
             # ID of voids of the original VIDE catalog that have been thresholded
             return self.void_selected[id_ovlp_out]
         
-        if key == 'id_selected':
+        elif key == 'id_selected':
             # IDs of voids of the entire voronoi_threshold output that reach the threshold value and satifty the overlaps condition.
             return id_ovlp_out
         
 
-        if key == 'id_wrt_all':
+        elif key == 'id_wrt_all':
             # IDs of voids of the entire voronoi_threshold output that reach the threshold value and satifty the overlaps condition.
             if frac_ovlp < 1:
                 return self.id_out[ith][frac_ovlp]
             else:
                 return np.arange(self.ids_selected[ith].shape[0])
         
-        if key == 'xyz':
+        elif key == 'xyz':
             # Comoving coordinates of the volume weighted baricenter
             return self.Xcm[id_ovlp_out,ith,:]
         
-        if key == 'RA':
+        elif key == 'RA':
             # Right ascension of the volume weighted baricenter
             if not (ith in self.RA.keys()):
                 self.comov_dist[ith], self.RA[ith], self.DEC[ith] = from_XYZ_to_rRAdec(self.Xcm[self.ids_selected[ith],ith,0],
@@ -443,7 +436,7 @@ class voronoi_threshold_finder:
             else:
                 return self.RA[ith]
         
-        if key == 'DEC':
+        elif key == 'DEC':
             # Declination of the volume weighted baricenter
             if not (ith in self.DEC.keys()):
                 self.comov_dist[ith], self.RA[ith], self.DEC[ith] = from_XYZ_to_rRAdec(self.Xcm[self.ids_selected[ith],ith,0],
@@ -454,7 +447,7 @@ class voronoi_threshold_finder:
             else:
                 return self.DEC[ith]
         
-        if key == 'comov_dist':
+        elif key == 'comov_dist':
             # Comoving distance of the volume weighted baricenter
             if not (ith in self.comov_dist.keys()):
                 self.comov_dist[ith], self.RA[ith], self.DEC[ith] = from_XYZ_to_rRAdec(self.Xcm[self.ids_selected[ith],ith,0],
@@ -465,10 +458,8 @@ class voronoi_threshold_finder:
             else:
                 return self.comov_dist[ith]
         
-        if key == 'redshift':
+        elif key == 'redshift':
             # Redshift of the volume weighted baricenter
-            if self.z_from_dist is None:
-                self.z_from_dist = RedshiftFromComovingDistanceOverh(self.OmegaM,self.w0,self.wa)
             if not (ith in self.redshift.keys()):
                 if not (ith in self.comov_dist.keys()):
                     self.comov_dist[ith], self.RA[ith], self.DEC[ith] = from_XYZ_to_rRAdec(self.Xcm[self.ids_selected[ith],ith,0],
@@ -480,24 +471,42 @@ class voronoi_threshold_finder:
             else:
                 return self.redshift[ith]
         
-        if key == 'volume':
+        elif key == 'volume':
             # Void volumes
             return self.Vol_interp[id_ovlp_out,ith]
         
-        if key == 'radius':
+        elif key == 'radius':
             # Void effective radius
             return (self.Vol_interp[id_ovlp_out,ith]* 3. / (4. * np.pi)) ** (1./3.)
         
-        if key == 'ell_eigenvalues':
+        elif key == 'ell_eigenvalues':
             # eigenvalues of the inertial tensor
             return self.ell_eigenvalues[id_ovlp_out,ith,:]
 
-        if key == 'ell_eigenvectors':
+        elif key == 'ell_eigenvectors':
             # eigenvectors of the inertial tensor
             return self.ell_eigenvectors[id_ovlp_out,ith,:,:]
 
-        if key == 'angular_mask':
-            # eigenvectors of the inertial tensor
+        elif key == 'angular_mask':
+            # heapix mask for Voronoi cells
             return self.healpix_mask[ith]
+
+        elif key == 'comov_range':
+            # comoving range for Voronoi cells
+            return self.comov_range[ith,:]
+
+        elif key == 'z_range':
+            # redshift range for Voronoi cells
+            return self.z_range[ith,:]
+
+        else:
+            all_keys = ['Ncells','ID_original_sample','id_selected','xyz','RA','DEC','redshift','volume','comov_dist',
+                        'radius','ell_eigenvalues','ell_eigenvectors','central_dens','id_wrt_all','angular_mask','comov_range','z_range']
+            
+            all_k_str = ''
+            for k_ok in all_keys:
+                all_k_str += k_ok+', '
+            
+            raise ValueError(key + ' key unknown. Available keys: '+all_k_str[:-2])
 
     
