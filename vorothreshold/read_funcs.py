@@ -3,10 +3,60 @@ import numpy as np
 import struct
 from netCDF4 import Dataset
 from numba import jit
+import joblib
+import subprocess
+import tempfile
+import os
+import h5py
 #from typing import List
 
 
-__all__ = ['read_voronoi_vide','read_voronoi_vide', 'voro_in_vide_voids', 'vide_voids_cat']
+__all__ = ['read_voronoi_vide','read_voronoi_vide', 'voro_in_vide_voids', 'vide_voids_cat','load_pickle_safe']
+
+
+def load_pickle_safe(pkl_file):
+    """Loads a joblib object in an isolated Python process and returns it safely."""
+    
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_filename = temp_file.name
+    
+    # Prepare the loop_string to execute in subprocess
+    loop_string = f"""
+import joblib
+import h5py
+
+# Load the joblib object
+obj = joblib.load('{pkl_file}')
+
+# Save the object's attributes to HDF5
+with h5py.File('{temp_filename}', 'w') as ff:
+    for kk, vv in vars(obj).items():
+        dt = h5py.special_dtype(vlen=str) 
+        if isinstance(vv, str):
+            ff.create_dataset(kk, data=vv, dtype=h5py.special_dtype(vlen=str) )
+        elif vv is None:
+            pass
+        else:
+            ff.create_dataset(kk, data=vv)
+"""
+    
+    # Run a separate Python process to load the object and re-save it in HDF5
+    subprocess.run([
+        "python", "-c", loop_string
+    ], check=True)
+
+    # Load the object back safely from the HDF5 file
+    obj = {}
+    with h5py.File(temp_filename, 'r') as ff:
+        for kk in ff.keys():
+            obj[kk] = ff[kk][()]
+            if type(obj[kk]) is bytes:
+                obj[kk] = obj[kk].decode("utf-8")
+
+    # Cleanup the temporary file
+    os.remove(temp_filename)
+    
+    return obj
 
 def read_adjfile_slow(adjfile):
     with open(adjfile, "rb") as adj:

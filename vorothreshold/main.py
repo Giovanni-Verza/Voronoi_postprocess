@@ -2,13 +2,15 @@ import glob
 import numpy as np
 import os
 import time
+import healpy as hp
+import joblib
 
 from numba.core import types
 from numba.typed import Dict
 from numba import jit, prange, set_num_threads, get_num_threads, get_thread_id
 
-from . read_funcs import read_adjfile, read_voronoi_vide
-from . masks import borders_mask_bruteforce, dist_limit_mask
+from . read_funcs import read_adjfile, read_voronoi_vide, load_pickle_safe
+from . masks import borders_mask_bruteforce, dist_limit_mask, borders_mask
 from . overlaps import select_overlaps, overlapping_fraction
 from . utilities import from_XYZ_to_rRAdec, from_rRAdec_to_XYZ, ComovingDistanceOverh, RedshiftFromComovingDistanceOverh, StrHminSec
 from . voronoi_threshold import is_in_arr, voronoi_threshold
@@ -90,16 +92,15 @@ def compute_overlaps_all_parallel(
 
 
 class voronoi_threshold_finder:
-    def __init__(self,threshold,lightcone=True,ID_core=None,neighbor_ptr=None,neighbor_ids=None,VoroXYZ=None,VoroVol=None,tracer_dens=None,
-                 vide_path=None,comov_range=None,z_range=None,OmegaM=None,w0=-1.,wa=0.,nthreads=-1,verbose=False,verbose_essential=True,max_num_part=-1):
+    def __init__(self,threshold,lightcone=True,ID_core=None,neighbor_ptr=None,neighbor_ids=None,VoroXYZ=None,VoroVol=None,tracer_dens=None,ang_paddig_rad=None,
+                 vide_path=None,comov_range=None,z_range=None,OmegaM=None,w0=-1.,wa=0.,nthreads=-1,verbose=True,max_num_part=-1):
         
         if verbose:
-            verbose_essential = True
+            verbose = True
         self.verbose = verbose
-        self.verbose_essential = verbose_essential
 
         
-        essentialprint = print if verbose_essential else lambda *a, **k: None
+        verboseprint = print if verbose else lambda *a, **k: None
         
         if nthreads <= 0:
             try:
@@ -129,7 +130,7 @@ class voronoi_threshold_finder:
 
         if not (vide_path is None):
             # load VTFE scheme from adjfile
-            essentialprint('    Loading VIDE data.',flush=True)
+            verboseprint('    Loading VIDE data.',flush=True)
             t0 = time.time()
 
             adjfile = glob.glob(vide_path+'/adj_*')[0] #vide_path + '/adj_' + vide_out_name + '.dat'
@@ -141,6 +142,17 @@ class voronoi_threshold_finder:
             # Load ids of cells belonging to minima
             ID_core = np.loadtxt(vide_path+'/untrimmed_voidDesc_all_'+vide_out_name+'.out', comments='#', skiprows=2)[:,2].astype(np.int_)
             
+            if OmegaM is None:
+                OmegaM = load_pickle_safe(vide_path+'/sample_info.dat')['omegaM']
+            else:
+                OmegaM_VIDE = load_pickle_safe(vide_path+'/sample_info.dat')['omegaM']
+                if OmegaM != OmegaM_VIDE:
+                    raise Warning('OmegaM passed differs from the value used for Vide. Passed: '+str(OmegaM)+', Vide:'+str(OmegaM_VIDE))
+            
+            if w0 != -1.:
+                raise Warning('w0 passed differs from the value used for Vide. Passed: '+str(w0)+', Vide: -1.0')
+            if wa != 0.:
+                raise Warning('wa passed differs from the value used for Vide. Passed: '+str(wa)+', Vide: 0.0')
 
             dist_z = ComovingDistanceOverh(OmegaM,w0,wa)
 
@@ -150,18 +162,21 @@ class voronoi_threshold_finder:
             self.VoroXYZ[:,:] = np.array(from_rRAdec_to_XYZ(dist_voro,self.RAvoro,self.DECvoro)).T
             del ids_voro, redshift_voro
 
-            essentialprint('        done:',StrHminSec(time.time()-t0),flush=True)
+            verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
 
             if max_num_part < 0:
 
                 max_num_part = int(5 * np.max(np.loadtxt(vide_path+'/untrimmed_centers_all_'+vide_out_name+'.out', comments="#")[:,9]))
-                if verbose:
-                    print('max_num_part < 0: authomatically set to 5 * max(num_part):',max_num_part,flush=True)
+                verboseprint('    max_num_part < 0: authomatically set to 5 * max(num_part):',max_num_part,flush=True)
 
             if (neighbor_ptr is None) or (neighbor_ids is None):
                 raise ValueError('VTF not passed. Either pass neighbor_ptr and neighbor_ids or vide_path.')
 
         if (comov_range is None) & (z_range is None) & (lightcone):
+            i_min = np.argmin(dist_voro)
+            i_max = np.argmax(dist_voro)
+            comov_range = [tracer_dens[i_min] + 3.5 * (tracer_dens[i_min] ** (-1./3.)),
+                           tracer_dens[i_max] - 3.5 * (tracer_dens[i_max] ** (-1./3.))]
             raise ValueError('comov_range and z_range are both None. One of them is required when lightcone = True.')
         if (not (comov_range is None)) & (not (z_range is None)) & (lightcone):
             raise Warning('both comov_range and z_range are passed, only comov_range will be considered.')
@@ -181,24 +196,45 @@ class voronoi_threshold_finder:
 
 
 
-        essentialprint('    voronoi_threshold started, nthreads =',nthreads,flush=True)
+        #verboseprint('    voronoi_threshold started, nthreads =',nthreads,flush=True)
         t0 = time.time()
         # Get threshold void properties for all the threshold values passed
         self.void_selected, self.ID_voro_dict, self.Xcm, self.Vol_interp, self.Ncells_in_void, self.ell_eigenvalues, self.ell_eigenvectors = voronoi_threshold(
             self.threshold,ID_core,neighbor_ptr,neighbor_ids,self.VoroXYZ,self.VoroVol,tracer_dens,nthreads=nthreads,verbose=verbose,max_num_part=max_num_part)
-        essentialprint('        main computation done:',StrHminSec(time.time()-t0),flush=True)
+        verboseprint('        main computation done:',StrHminSec(time.time()-t0),flush=True)
         
 
-        essentialprint('    angular and radial mask started.',flush=True)
+        verboseprint('    angular and radial mask started.',flush=True)
         t0 = time.time()
 
         self.ids_selected = dict()
+        self.healpix_mask = dict()
         for ith in range(len(threshold)):
-            nside = 128
-            mask_ids = borders_mask_bruteforce(self.RAvoro, self.DECvoro, self.Ncells_in_void[:,ith], self.ID_voro_dict,nside)
+            if ang_paddig_rad is None:
+                trs_mask = (dist_voro >= self.comov_range[ith,0]) & (dist_voro <= self.comov_range[ith,1])
+                ang_paddig_rad = 3.5 * np.max(tracer_dens[trs_mask]**(-1./3.) / dist_voro[trs_mask])
+            if ith == 0:
+                try:
+                    mask_pix = hp.read_map(vide_path + '/mask_map.fits')
+                    nside = hp.get_nside(mask_pix)
+                    verboseprint('    angular mask loaded, nside =',nside,flush=True)
+                except:
+                    nside = 128
+                    npix = hp.nside2npix(nside)
+                    mask_pix = np.zeros(npix)
+                    pix = hp.ang2pix(nside, np.pi/2. - self.DECvoro*np.pi/180., np.pi/180.*self.RAvoro)
+                    for ii in np.arange(npix)[~mask_pix.astype(np.bool_)]:
+                        if np.sum(mask_pix[hp.get_all_neighbours(nside,ii)]) >= 6:
+                            mask_pix[ii] = 1.
+                    verboseprint('    angular mask not in path, builded with nside =',nside,flush=True)
+                npadding_ang = int((ang_paddig_rad + hp.nside2resol(nside)) / hp.nside2resol(nside))
+                verboseprint('    ang_paddig_rad =',ang_paddig_rad,'npadding_ang =',npadding_ang,flush=True)
+
+            #mask_ids = borders_mask_bruteforce(self.RAvoro, self.DECvoro, self.Ncells_in_void[:,ith], self.ID_voro_dict,nside)
+            mask_ids, self.healpix_mask[ith] = borders_mask(mask_pix,self.RAvoro,self.DECvoro,self.ID_voro_dict,self.Ncells_in_void[:,ith],npadding_ang)
             self.ids_selected[ith] = dist_limit_mask(mask_ids,self.Xcm[:,ith,:],self.comov_range[ith,0],self.comov_range[ith,1],
                                         self.VoroXYZ,self.Ncells_in_void[:,ith],self.ID_voro_dict) 
-        essentialprint('        done:',StrHminSec(time.time()-t0),flush=True)
+        verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
 
         self.id_out = dict() 
         for ith in range(len(threshold)):
@@ -217,7 +253,7 @@ class voronoi_threshold_finder:
     def compute_overlaps(self,frac_ovlp,thresholds=None,ids_threshold=None,verbose=None):
         if not (verbose is None):
             self.verbose = verbose
-            self.verbose_essential = verbose
+            self.verbose = verbose
         if (ids_threshold is None):
             if thresholds is None:
                 thresholds = self.threshold
@@ -334,7 +370,7 @@ class voronoi_threshold_finder:
     # return values
     def get_values(self,threshold,key,frac_ovlp=1,verbose=None):
         if not (verbose is None):
-            self.verbose_essential = verbose
+            self.verbose = verbose
             self.verbose = verbose
         
         all_keys = ['Ncells','ID_original_sample','id_selected','xyz','RA','DEC','redshift','volume','comov_dist',
@@ -351,8 +387,8 @@ class voronoi_threshold_finder:
 
         if frac_ovlp < 1:
             if not (frac_ovlp in self.id_out[ith].keys()):
-                essentialprint = print if self.verbose_essential else lambda *a, **k: None
-                essentialprint('        select overlaps, ith=',ith,'frac_ovlp =',frac_ovlp,flush=True)
+                verboseprint = print if self.verbose else lambda *a, **k: None
+                verboseprint('        select overlaps, ith=',ith,'frac_ovlp =',frac_ovlp,flush=True)
                 t0 = time.time()
 
                 ids_ovlp, Vol_ovlp, Vol_ovlp_frac, num_ovlps = overlapping_fraction(
@@ -361,8 +397,8 @@ class voronoi_threshold_finder:
                 sor_by_vol = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1].astype(dtype=np.int_,order='C')
 
                 self.id_out[ith][frac_ovlp] = select_overlaps(frac_ovlp,self.ids_selected[ith],sor_by_vol, ids_ovlp, Vol_ovlp_frac, num_ovlps)
-                essentialprint('        done:',StrHminSec(time.time()-t0),flush=True)
-                #essentialprint('            keys:',self.id_out[ith].keys(),flush=True)
+                verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
+                #verboseprint('            keys:',self.id_out[ith].keys(),flush=True)
             
             id_ovlp_out = self.ids_selected[ith][self.id_out[ith][frac_ovlp]]
         
@@ -459,5 +495,9 @@ class voronoi_threshold_finder:
         if key == 'ell_eigenvectors':
             # eigenvectors of the inertial tensor
             return self.ell_eigenvectors[id_ovlp_out,ith,:,:]
+
+        if key == 'angular_mask':
+            # eigenvectors of the inertial tensor
+            return self.healpix_mask[ith]
 
     

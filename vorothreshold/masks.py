@@ -1,18 +1,22 @@
 import numpy as np
 import healpy as hp
-from numba import  jit
+from numba import  jit, prange
 from . overlaps import compute_max_dist2
 
 
 
-def borders_mask_bruteforce(RAvoro,DECvoro,Ncells,ID_voro_dict,nside):
+def borders_mask_bruteforce(RAvoro,DECvoro,Ncells,ID_voro_dict,mask_pix):
 
+    #npix = hp.nside2npix(nside)
+    #mask_pix = np.zeros((npix))
+    #phi = np.pi/180. * RAvoro
+    #theta = np.pi/2. - DECvoro*np.pi/180.
+    #pix = hp.ang2pix(nside, theta, phi)
+    #mask_pix[pix] = 1.
+
+
+    nside = hp.get_nside(mask_pix)
     npix = hp.nside2npix(nside)
-    mask_pix = np.zeros((npix))
-    phi = np.pi/180. * RAvoro
-    theta = np.pi/2. - DECvoro*np.pi/180.
-    pix = hp.ang2pix(nside, theta, phi)
-    mask_pix[pix] = 1.
 
     id_selected = np.arange(Ncells.shape[0])[Ncells >= 1]
     mask_vds = np.ones(id_selected.shape[0],dtype=np.bool_)
@@ -32,7 +36,47 @@ def borders_mask_bruteforce(RAvoro,DECvoro,Ncells,ID_voro_dict,nside):
 
 
 
-def borders_mask(xyz_cm,max_ang_dist,RAvoro,DECvoro,Ncells,ID_voro_dict,nside):
+def ids_pix_noborder(mask_pix_bool,theta_voro,phi_voro,padding_npix):
+    nside = hp.get_nside(mask_pix_bool)
+    npix = hp.nside2npix(nside)
+    mask_pix_border = np.zeros(npix,dtype=np.bool_)
+    for ipix in np.arange(npix)[mask_pix_bool.astype(np.bool_)]:
+        i_neigh = hp.get_all_neighbours(nside,ipix)
+        mask_pix_border[ipix] = (np.sum(mask_pix_bool[i_neigh]) == i_neigh.shape[0])
+    for progr in range(padding_npix):
+        mask_pix_border_old = np.copy(mask_pix_border)
+        for ipix in np.arange(npix)[mask_pix_border_old]:
+            i_neigh = hp.get_all_neighbours(nside,ipix)
+            mask_pix_border[ipix] = (np.sum(mask_pix_border_old[i_neigh]) == i_neigh.shape[0])
+
+
+    return mask_pix_border[hp.ang2pix(nside, theta_voro, phi_voro)]
+
+
+def ids_pix_noborder_RADEC(mask_pix_bool,RAvoro,DECvoro,padding_npix):
+    phi_voro = np.pi/180. * RAvoro
+    theta_voro = np.pi/2. - DECvoro*np.pi/180.
+    return ids_pix_noborder(mask_pix_bool,theta_voro,phi_voro,padding_npix)
+
+
+@jit(nopython=True)
+def borders_mask_inner(mask_voro,ID_voro_dict,Ncells):
+    id_selected = np.arange(Ncells.shape[0])[Ncells >= 1]
+    mask_vds = np.ones(id_selected.shape[0],dtype=np.bool_)
+
+    for i in range(id_selected.shape[0]):
+        iv = id_selected[i]
+        Ncells_loop = int(Ncells[iv]) + int((Ncells[iv]%1) > 0)
+        mask_vds[i] = np.all(mask_voro[ID_voro_dict[iv][:Ncells_loop]])
+    return id_selected[mask_vds]
+
+
+def borders_mask(mask_pix_bool,RAvoro,DECvoro,ID_voro_dict,Ncells,padding_npix):
+    mask_voro = ids_pix_noborder_RADEC(mask_pix_bool,RAvoro,DECvoro,padding_npix)
+    return borders_mask_inner(mask_voro,ID_voro_dict,Ncells), mask_voro
+
+
+def borders_mask_OLD(xyz_cm,max_ang_dist,RAvoro,DECvoro,Ncells,ID_voro_dict,nside):
 
     npix = hp.nside2npix(nside)
     mask_pix = np.zeros((npix))
