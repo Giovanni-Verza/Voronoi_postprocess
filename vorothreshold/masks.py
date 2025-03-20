@@ -1,6 +1,6 @@
 import numpy as np
 import healpy as hp
-from numba import  jit, prange
+from numba import  jit, prange, set_num_threads, get_num_threads
 from . overlaps import compute_max_dist2
 
 
@@ -59,21 +59,37 @@ def ids_pix_noborder_RADEC(mask_pix_bool,RAvoro,DECvoro,padding_npix):
     return ids_pix_noborder(mask_pix_bool,theta_voro,phi_voro,padding_npix)
 
 
-@jit(nopython=True)
+@jit(nopython=True,parallel=True)
 def borders_mask_inner(mask_voro,ID_voro_dict,Ncells):
     id_selected = np.arange(Ncells.shape[0])[Ncells >= 1]
     mask_vds = np.ones(id_selected.shape[0],dtype=np.bool_)
 
-    for i in range(id_selected.shape[0]):
+    for i in prange(id_selected.shape[0]):
         iv = id_selected[i]
         Ncells_loop = int(Ncells[iv]) + int((Ncells[iv]%1) > 0)
         mask_vds[i] = np.all(mask_voro[ID_voro_dict[iv][:Ncells_loop]])
     return id_selected[mask_vds]
 
 
-def borders_mask(mask_pix_bool,RAvoro,DECvoro,ID_voro_dict,Ncells,padding_npix):
+def borders_mask(mask_pix_bool,RAvoro,DECvoro,ID_voro_dict,Ncells,padding_npix,nthreads=-1):
+
+    try:
+        nthreads_tot = int(os.environ["OMP_NUM_THREADS"])
+    except:
+        nthreads_tot = get_num_threads()
+
+    if (nthreads <= 0) | (nthreads > nthreads_tot):
+        nthreads = nthreads_tot
+    else:
+        set_num_threads(min(nthreads,Num_vds))
+
     mask_voro, mask_pix_border = ids_pix_noborder_RADEC(mask_pix_bool,RAvoro,DECvoro,padding_npix)
-    return borders_mask_inner(mask_voro,ID_voro_dict,Ncells), mask_voro, mask_pix_border
+    id_selected = borders_mask_inner(mask_voro,ID_voro_dict,Ncells)
+
+    if nthreads_tot != get_num_threads():
+        set_num_threads(nthreads_tot)
+
+    return id_selected, mask_voro, mask_pix_border
 
 
 def borders_mask_OLD(xyz_cm,max_ang_dist,RAvoro,DECvoro,Ncells,ID_voro_dict,nside):
