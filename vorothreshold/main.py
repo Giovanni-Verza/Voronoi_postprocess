@@ -79,7 +79,7 @@ def compute_overlaps_all_parallel(
         
     for ith in range(Nthresholds):
         #print(ith,flush=True)
-        ids_ovlp[ith], Vol_ovlp, Vol_ovlp_frac[ith], num_ovlps[ith]  = overlapping_fraction(
+        ids_ovlp[ith], Vol_ovlp, Vol_ovlp_frac[ith], num_ovlps[ith] = overlapping_fraction(
             Xcm[:,ids_threshold[ith],:], Vol_interp[:,ids_threshold[ith]], Ncells_in_void[:,ids_threshold[ith]], VoroXYZ, VoroVol, ID_voro_dict,
             id_selected=ids_selected[ids_threshold[ith]],nthreads=nthreads,verbose=verbose)
         sor_by_vol[ith] = (np.argsort(Vol_interp[ids_selected[ith],ith])[::-1]).astype(dtype=np.int_, order='C')
