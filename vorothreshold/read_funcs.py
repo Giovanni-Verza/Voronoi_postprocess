@@ -236,7 +236,7 @@ class update_dict:
 
 
 
-class voro_in_vide_voids:
+class OLD_voro_in_vide_voids:
     def __init__(self,vide_out,sample_name=None,dataPortion="all",untrimmed=True):
         if sample_name is None:
             zoneFile = glob.glob(vide_out+'/voidZone_*')[0]
@@ -304,6 +304,112 @@ class voro_in_vide_voids:
         return np.array(partOut).reshape(-1)
 
 
+
+
+def load_void_zones_inner(raw_data):
+    numZonesTot = raw_data[0]
+    iprogr = 0
+    index = 1
+    numZones = np.empty(numZonesTot,dtype=np.int32)
+    zoneIDs = dict()
+    while iprogr < numZonesTot:
+        numZones[iprogr] = raw_data[index]
+        zoneIDs[iprogr] = raw_data[index+1:index+numZones[iprogr]+1]
+        
+        index += numZones[iprogr] + 1
+        iprogr += 1
+    return numZones, zoneIDs
+
+def load_void_zone_part(zonePartFile):
+    with open(zonePartFile, mode="rb") as File:
+        num_bytes = len(File.read())
+    print(num_bytes)
+    with open(zonePartFile, mode="rb") as File:
+
+        data = File.read(num_bytes)
+    
+        # Read all neighbors' IDs in bulk
+        raw_data = np.frombuffer(data, dtype=np.int32)
+
+    return raw_data
+
+def load_partzone(vide_out,sample_name=None,dataPortion="all",untrimmed=True):
+    #print("Loading particle-zone membership info...")
+    if sample_name is None:
+        zoneFile = glob.glob(vide_out+'/voidZone_*')[0]
+        sample_name = zoneFile.replace(vide_out+'/voidZone_','').replace('.dat','')
+    else:
+        zoneFile = vide_out+"/voidZone_"+sample_name+".dat"
+    zonePartFile = vide_out+"/voidPart_"+sample_name+".dat"
+    zones2Parts = []
+    with open(zonePartFile, mode="rb") as File:
+        num_bytes = len(File.read())
+        print(num_bytes)
+    with open(zonePartFile, mode="rb") as File:
+
+        data = File.read(num_bytes)
+    
+        # Read all neighbors' IDs in bulk
+        raw_data = np.frombuffer(data, dtype=np.int32)
+
+    return raw_data
+
+def load_partzone_inner(raw_data):
+    chk = raw_data[0]
+    numZonesTot = raw_data[1]
+    iprogr = 0
+    index = 2
+    numPart = np.empty(numZonesTot,dtype=np.int32)
+    partID = dict()
+    while iprogr < numZonesTot:
+        numPart[iprogr] = raw_data[index]
+        partID[iprogr] = raw_data[index+1:index+numPart[iprogr]+1]
+        
+        index += numPart[iprogr] + 1
+        iprogr += 1
+    return numPart, partID
+
+
+
+class voro_in_vide_voids:
+    def __init__(self,vide_out,sample_name=None,dataPortion="all",untrimmed=True):
+        if sample_name is None:
+            zoneFile = glob.glob(vide_out+'/voidZone_*')[0]
+            sample_name = zoneFile.replace(vide_out+'/voidZone_','').replace('.dat','')
+        else:
+            zoneFile = vide_out+"/voidZone_"+sample_name+".dat"
+
+        self.numZones, self.zoneIDs = load_void_zones_inner(load_void_zone_part(zoneFile))
+
+        zonePartFile = vide_out+"/voidPart_"+sample_name+".dat"
+        self.numPart, self.partID = load_partzone_inner(load_void_zone_part(zonePartFile))
+
+
+        if untrimmed:
+            prefix = "untrimmed_"
+        else:
+            prefix = ""
+
+        self.voidID = np.loadtxt(vide_out+"/"+prefix+"voidDesc_"+dataPortion+"_"+sample_name+".out", comments="#", skiprows=2)[:,1].astype(np.int_)
+
+    def get_voro_from_uniqueID(self,voidID):
+        #partOut = np.zeros(0,np.int_)
+        partOut = []
+        for iZ in range(self.numZones[voidID]):
+            partOut.append(self.partID[self.zoneIDs[voidID][iZ]])
+
+        return np.array(partOut).reshape(-1)
+    
+
+    def get_voro_from_ID(self,ivd):
+        #partOut = np.zeros(0,np.int_)
+        partOut = []
+        for iZ in range(self.numZones[self.voidID[ivd]]):
+            partOut.append(self.partID[self.zoneIDs[self.voidID[ivd]][iZ]])
+
+        return np.array(partOut).reshape(-1)
+    
+    
 
 
 def vide_voids_cat(vide_out_dir,sample_name,dataPortion='all',untrimmed=True,as_dict=True,values_out=None):
