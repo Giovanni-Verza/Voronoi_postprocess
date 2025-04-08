@@ -137,8 +137,8 @@ def read_adjfile(adjfile):
 def read_voronoi_vide(vide_out,sample_name=None):
 
     if sample_name is None:
-        infoFile = glob.glob(vide_out+'/zobov_slice_*')[0]
-        sample_name = infoFile.replace(vide_out+'/zobov_slice_','').replace('.par','')
+        infoFile = glob.glob(vide_out+'/zobov_slice_*.par')[0]
+        sample_name = infoFile.split('zobov_slice_')[-1].replace('.par','')
     else:
         infoFile = vide_out+"/zobov_slice_"+sample_name+".par"
 

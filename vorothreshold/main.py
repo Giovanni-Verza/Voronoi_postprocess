@@ -178,9 +178,8 @@ class voronoi_threshold_finder:
         if (comov_range is None) & (z_range is None) & (lightcone):
             i_min = np.argmin(dist_voro)
             i_max = np.argmax(dist_voro)
-            comov_range = [tracer_dens[i_min] + 3.5 * (tracer_dens[i_min] ** (-1./3.)),
-                           tracer_dens[i_max] - 3.5 * (tracer_dens[i_max] ** (-1./3.))]
-            raise ValueError('comov_range and z_range are both None. One of them is required when lightcone = True.')
+            comov_range = [dist_voro[i_min] + 3.5 * (tracer_dens[i_min] ** (-1./3.)),
+                           dist_voro[i_max] - 3.5 * (tracer_dens[i_max] ** (-1./3.))]
             raise ValueError('comov_range and z_range are both None. One of them is required when lightcone = True.')
         if (comov_range is None):
             comov_range = dist_z.get_dist(np.array(z_range))

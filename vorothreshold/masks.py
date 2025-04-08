@@ -1,6 +1,7 @@
 import numpy as np
 import healpy as hp
 from numba import  jit, prange, set_num_threads, get_num_threads
+import os
 from . overlaps import compute_max_dist2
 
 
