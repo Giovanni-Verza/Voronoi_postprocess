@@ -347,7 +347,7 @@ def cluster_accretion_loops_parallel(ID_voro_dict, threshold_arr,ID_core_arr,nei
 @jit(nopython=True,parallel=True)
 def get_void_properties_loops(ID_voro_dict, Ncells_in_void, threshold_arr,ID_core_arr,VoroXYZ,VoroVol,zDens):
     Nthresholds = threshold_arr.shape[0]
-    Num_vds = ID_core_arr.shape[0]
+    Num_vds = Ncells_in_void.shape[0]
     #numPart = VoroXYZ.shape[0]
     
     Xcm = np.zeros((Num_vds,Nthresholds,3))
@@ -367,7 +367,7 @@ def get_void_properties_loops(ID_voro_dict, Ncells_in_void, threshold_arr,ID_cor
 @jit(nopython=True,parallel=True)
 def get_void_properties_loops_pbc(ID_voro_dict, Ncells_in_void,threshold_arr,ID_core_arr,VoroXYZ,VoroVol,zDens,Lbox):
     Nthresholds = threshold_arr.shape[0]
-    Num_vds = ID_core_arr.shape[0]
+    Num_vds = Ncells_in_void.shape[0]
     #numPart = VoroXYZ.shape[0]
     
     Xcm = np.zeros((Num_vds,Nthresholds,3))
