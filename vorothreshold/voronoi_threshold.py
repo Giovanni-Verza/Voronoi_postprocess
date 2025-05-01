@@ -26,7 +26,7 @@ def is_in_arr(ar1,ar2):
 
 
 @jit(nopython=True)
-def cluster_accretion_OLD(IDthresholds,ID_core,numPart,neighbor_ptr,neighbor_ids,Nthresholds,threshold,VoroXYZ,VoroVol,zDens):
+def cluster_accretion_OLD(IDthresholds,ID_core,numPart,neighbor_ptr,neighbor_ids,Nthresholds,threshold,VoroXYZ,VoroVol,tracer_dens):
     #print(i_progr,flush=True)
     
     IDnext = ID_core
@@ -53,10 +53,10 @@ def cluster_accretion_OLD(IDthresholds,ID_core,numPart,neighbor_ptr,neighbor_ids
     Nneighbors = 1
     VolTot = VoroVol[IDnext] 
     
-    numerator_dens = 1. / zDens[IDnext]
+    numerator_dens = 1. / tracer_dens[IDnext]
     Dens = numerator_dens / VolTot
-    Xcm = VoroXYZ[IDnext,:] * VoroVol[IDnext] / zDens[IDnext] #np.zeros(3)
-    Norm_cm = VoroVol[IDnext] / zDens[IDnext] #np.zeros(3)
+    Xcm = VoroXYZ[IDnext,:] * VoroVol[IDnext] / tracer_dens[IDnext] #np.zeros(3)
+    Norm_cm = VoroVol[IDnext] / tracer_dens[IDnext] #np.zeros(3)
 
     for ith in range(Nthresholds):
         Condition = (Dens <= threshold[ith]) & (Ncells < numPart) #(Ncells < numPart-1)
@@ -75,25 +75,25 @@ def cluster_accretion_OLD(IDthresholds,ID_core,numPart,neighbor_ptr,neighbor_ids
 
             Cond_innert = True
             ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = ID_to_explore[Nneighbors:Nneighbors+NtoAdd][
-                (np.argsort(VoroVol[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]] * zDens[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]])[::-1])]
+                (np.argsort(VoroVol[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]] * tracer_dens[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]])[::-1])]
             inner_progr = 0
             while Cond_innert:
                 IDnext = ID_to_explore[Nneighbors+inner_progr]
                 #ax.scatter(VoroXYZ[IDnext,0],VoroXYZ[IDnext,1],VoroXYZ[IDnext,2],c=CC)
                 IDthresholds[Ncells] = IDnext
                 Ncells += 1
-                numerator_dens += 1. / zDens[IDnext]
+                numerator_dens += 1. / tracer_dens[IDnext]
                 VolTot += VoroVol[IDnext]
-                #NormVolTot += VoroVol[IDnext] * zDens[IDnext]
-                #Dens = Ncells / VolTot / zDens[IDnext]
-                #Dens = Ncells / VolTot / zDens_centr
+                #NormVolTot += VoroVol[IDnext] * tracer_dens[IDnext]
+                #Dens = Ncells / VolTot / tracer_dens[IDnext]
+                #Dens = Ncells / VolTot / tracer_dens_centr
                 #Dens = Ncells / NormVolTot
                 Dens = numerator_dens / VolTot
-                Xcm += VoroXYZ[IDnext,:] * VoroVol[IDnext] / zDens[IDnext]
-                Norm_cm += VoroVol[IDnext] / zDens[IDnext]
+                Xcm += VoroXYZ[IDnext,:] * VoroVol[IDnext] / tracer_dens[IDnext]
+                Norm_cm += VoroVol[IDnext] / tracer_dens[IDnext]
 
-                #print(ith,Ncells,inner_progr,Dens,IDnext,Nneighbors,VoroVol[IDnext] * zDens[IDnext],NormVolTot,VoroVol[IDnext],VolTot)
-                #print(Ncells,Dens, Ncells / VolTot / zDens[IDnext])
+                #print(ith,Ncells,inner_progr,Dens,IDnext,Nneighbors,VoroVol[IDnext] * tracer_dens[IDnext],NormVolTot,VoroVol[IDnext],VolTot)
+                #print(Ncells,Dens, Ncells / VolTot / tracer_dens[IDnext])
                 inner_progr += 1
                 Cond_innert = (Dens <= threshold[ith]) & (Ncells < numPart) & (inner_progr < NtoAdd)
 
@@ -105,7 +105,7 @@ def cluster_accretion_OLD(IDthresholds,ID_core,numPart,neighbor_ptr,neighbor_ids
             Nneighbors -= 1
 
             ## find new IDnext as the lowest norm density among neighbor cells
-            IDanchor = ID_to_explore[:Nneighbors][np.argmax(VoroVol[ID_to_explore[:Nneighbors]]* zDens[ID_to_explore[:Nneighbors]])]
+            IDanchor = ID_to_explore[:Nneighbors][np.argmax(VoroVol[ID_to_explore[:Nneighbors]]* tracer_dens[ID_to_explore[:Nneighbors]])]
     
             Condition = (Dens <= threshold[ith]) & (Ncells < numPart)
             #out_progr += 1
@@ -117,30 +117,30 @@ def cluster_accretion_OLD(IDthresholds,ID_core,numPart,neighbor_ptr,neighbor_ids
 
         #if (Dens >= threshold[ith]): 
         VolPrevious = VolTot-VoroVol[IDthresholds[Ncells-1]]
-        numerator_dens_previous = numerator_dens - 1./zDens[IDthresholds[Ncells-1]]
-        frac = (threshold[ith] * VolPrevious - numerator_dens_previous) / (1. / zDens[IDthresholds[Ncells-1]] - threshold[ith] * VoroVol[IDthresholds[Ncells-1]])
+        numerator_dens_previous = numerator_dens - 1./tracer_dens[IDthresholds[Ncells-1]]
+        frac = (threshold[ith] * VolPrevious - numerator_dens_previous) / (1. / tracer_dens[IDthresholds[Ncells-1]] - threshold[ith] * VoroVol[IDthresholds[Ncells-1]])
         #if frac == 0:
         #    print(ID_core,'Ncells:',Ncells,'VolPrevious:',VolPrevious,'VolTot:',VolTot,'VolLast:',VoroVol[IDthresholds[Ncells-1]],
-        #          'numerator_dens_previous:',numerator_dens_previous,'numerator_dens:',numerator_dens,'numerator_dens_last:',1./zDens[IDthresholds[Ncells-1]],flush=True)
+        #          'numerator_dens_previous:',numerator_dens_previous,'numerator_dens:',numerator_dens,'numerator_dens_last:',1./tracer_dens[IDthresholds[Ncells-1]],flush=True)
         Vol_interp[ith] = VolPrevious + frac * VoroVol[IDthresholds[Ncells-1]]
         Ncells_in_void[ith] = Ncells-1+frac
 
-        Coord_norm = np.sum(1. / (VoroVol[IDthresholds[:Ncells-1]] * zDens[IDthresholds[:Ncells-1]])) +  1. / (frac * VoroVol[IDthresholds[Ncells-1]] * zDens[IDthresholds[Ncells-1]])
-        Xcm_interp[ith,0] = (np.sum(VoroXYZ[IDthresholds[:Ncells-1],0] / (VoroVol[IDthresholds[:Ncells-1]] * zDens[IDthresholds[:Ncells-1]])) + 
-                            VoroXYZ[IDthresholds[Ncells-1],0] / (frac * VoroVol[IDthresholds[Ncells-1]] * zDens[IDthresholds[Ncells-1]])) / Coord_norm
-        Xcm_interp[ith,1] = (np.sum(VoroXYZ[IDthresholds[:Ncells-1],1] / (VoroVol[IDthresholds[:Ncells-1]] * zDens[IDthresholds[:Ncells-1]])) + 
-                            VoroXYZ[IDthresholds[Ncells-1],1] / (frac * VoroVol[IDthresholds[Ncells-1]] * zDens[IDthresholds[Ncells-1]])) / Coord_norm
-        Xcm_interp[ith,2] = (np.sum(VoroXYZ[IDthresholds[:Ncells-1],2] / (VoroVol[IDthresholds[:Ncells-1]] * zDens[IDthresholds[:Ncells-1]])) + 
-                            VoroXYZ[IDthresholds[Ncells-1],2] / (frac * VoroVol[IDthresholds[Ncells-1]] * zDens[IDthresholds[Ncells-1]])) / Coord_norm
+        Coord_norm = np.sum(1. / (VoroVol[IDthresholds[:Ncells-1]] * tracer_dens[IDthresholds[:Ncells-1]])) +  1. / (frac * VoroVol[IDthresholds[Ncells-1]] * tracer_dens[IDthresholds[Ncells-1]])
+        Xcm_interp[ith,0] = (np.sum(VoroXYZ[IDthresholds[:Ncells-1],0] / (VoroVol[IDthresholds[:Ncells-1]] * tracer_dens[IDthresholds[:Ncells-1]])) + 
+                            VoroXYZ[IDthresholds[Ncells-1],0] / (frac * VoroVol[IDthresholds[Ncells-1]] * tracer_dens[IDthresholds[Ncells-1]])) / Coord_norm
+        Xcm_interp[ith,1] = (np.sum(VoroXYZ[IDthresholds[:Ncells-1],1] / (VoroVol[IDthresholds[:Ncells-1]] * tracer_dens[IDthresholds[:Ncells-1]])) + 
+                            VoroXYZ[IDthresholds[Ncells-1],1] / (frac * VoroVol[IDthresholds[Ncells-1]] * tracer_dens[IDthresholds[Ncells-1]])) / Coord_norm
+        Xcm_interp[ith,2] = (np.sum(VoroXYZ[IDthresholds[:Ncells-1],2] / (VoroVol[IDthresholds[:Ncells-1]] * tracer_dens[IDthresholds[:Ncells-1]])) + 
+                            VoroXYZ[IDthresholds[Ncells-1],2] / (frac * VoroVol[IDthresholds[Ncells-1]] * tracer_dens[IDthresholds[Ncells-1]])) / Coord_norm
         
         # geometrical shape
         # density field
         for i in range(3):
-            shape_matrix[i,i] = (np.sum((VoroXYZ[IDthresholds[:Ncells-1],(i+1) % 3]**2 + VoroXYZ[IDthresholds[:Ncells-1],(i+2) % 3]**2) / zDens[IDthresholds[:Ncells-1]]) + 
-                                    (VoroXYZ[IDthresholds[Ncells-1],(i+1) % 3]**2 + VoroXYZ[IDthresholds[Ncells-1],(i+2) % 3]**2)  * frac / zDens[IDthresholds[Ncells-1]])
+            shape_matrix[i,i] = (np.sum((VoroXYZ[IDthresholds[:Ncells-1],(i+1) % 3]**2 + VoroXYZ[IDthresholds[:Ncells-1],(i+2) % 3]**2) / tracer_dens[IDthresholds[:Ncells-1]]) + 
+                                    (VoroXYZ[IDthresholds[Ncells-1],(i+1) % 3]**2 + VoroXYZ[IDthresholds[Ncells-1],(i+2) % 3]**2)  * frac / tracer_dens[IDthresholds[Ncells-1]])
             for j in range(i):
-                shape_matrix[i,j] = -(np.sum(VoroXYZ[IDthresholds[:Ncells-1],i] * VoroXYZ[IDthresholds[:Ncells-1],j] / zDens[IDthresholds[:Ncells-1]]) + 
-                                        VoroXYZ[IDthresholds[Ncells-1],i] * VoroXYZ[IDthresholds[Ncells-1],j] * frac / zDens[IDthresholds[Ncells-1]])
+                shape_matrix[i,j] = -(np.sum(VoroXYZ[IDthresholds[:Ncells-1],i] * VoroXYZ[IDthresholds[:Ncells-1],j] / tracer_dens[IDthresholds[:Ncells-1]]) + 
+                                        VoroXYZ[IDthresholds[Ncells-1],i] * VoroXYZ[IDthresholds[Ncells-1],j] * frac / tracer_dens[IDthresholds[Ncells-1]])
                 shape_matrix[j,i] = shape_matrix[i,j]
 
         eigenvalues[ith,:], eigenvectors[ith,:,:] = np.linalg.eig(shape_matrix)
@@ -152,7 +152,7 @@ def cluster_accretion_OLD(IDthresholds,ID_core,numPart,neighbor_ptr,neighbor_ids
 @jit(nopython=True)
 def cluster_accretion(
     Ncells_in_void, IDvoro_in_void, # vectors/dicts to update
-    ID_core,numPart,neighbor_ptr,neighbor_ids,Nthresholds,threshold,VoroXYZ,VoroVol,zDens):
+    ID_core,numPart,neighbor_ptr,neighbor_ids,Nthresholds,threshold,VoroXYZ,VoroVol,tracer_dens):
     #print(i_progr,flush=True)
     
     IDnext = ID_core
@@ -171,10 +171,10 @@ def cluster_accretion(
     Nneighbors = 1
     VolTot = VoroVol[IDnext] 
     
-    numerator_dens = 1. / zDens[IDnext]
+    numerator_dens = 1. / tracer_dens[IDnext]
     Dens = numerator_dens / VolTot
-    Xcm = VoroXYZ[IDnext,:] * VoroVol[IDnext] / zDens[IDnext] #np.zeros(3)
-    Norm_cm = VoroVol[IDnext] / zDens[IDnext] #np.zeros(3)
+    Xcm = VoroXYZ[IDnext,:] * VoroVol[IDnext] / tracer_dens[IDnext] #np.zeros(3)
+    Norm_cm = VoroVol[IDnext] / tracer_dens[IDnext] #np.zeros(3)
 
     for ith in range(Nthresholds):
         Condition = (Dens <= threshold[ith]) & (Ncells < numPart) #(Ncells < numPart-1)
@@ -188,19 +188,19 @@ def cluster_accretion(
 
             Cond_innert = True
             ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = ID_to_explore[Nneighbors:Nneighbors+NtoAdd][
-                (np.argsort(VoroVol[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]] * zDens[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]])[::-1])]
+                (np.argsort(VoroVol[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]] * tracer_dens[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]])[::-1])]
             inner_progr = 0
             while Cond_innert:
                 IDnext = ID_to_explore[Nneighbors+inner_progr]
 
                 IDvoro_in_void[Ncells] = IDnext
                 Ncells += 1
-                numerator_dens += 1. / zDens[IDnext]
+                numerator_dens += 1. / tracer_dens[IDnext]
                 VolTot += VoroVol[IDnext]
                 
                 Dens = numerator_dens / VolTot
-                Xcm += VoroXYZ[IDnext,:] * VoroVol[IDnext] / zDens[IDnext]
-                Norm_cm += VoroVol[IDnext] / zDens[IDnext]
+                Xcm += VoroXYZ[IDnext,:] * VoroVol[IDnext] / tracer_dens[IDnext]
+                Norm_cm += VoroVol[IDnext] / tracer_dens[IDnext]
 
                 inner_progr += 1
                 Cond_innert = (Dens <= threshold[ith]) & (Ncells < numPart) & (inner_progr < NtoAdd)
@@ -213,7 +213,7 @@ def cluster_accretion(
             Nneighbors -= 1
 
             ## find new IDnext as the lowest norm density among neighbor cells
-            IDanchor = ID_to_explore[:Nneighbors][np.argmax(VoroVol[ID_to_explore[:Nneighbors]]* zDens[ID_to_explore[:Nneighbors]])]
+            IDanchor = ID_to_explore[:Nneighbors][np.argmax(VoroVol[ID_to_explore[:Nneighbors]]* tracer_dens[ID_to_explore[:Nneighbors]])]
     
             Condition = (Dens <= threshold[ith]) & (Ncells < numPart)
             #out_progr += 1
@@ -225,8 +225,8 @@ def cluster_accretion(
 
 
         VolPrevious = VolTot-VoroVol[IDvoro_in_void[Ncells-1]]
-        numerator_dens_previous = numerator_dens - 1./zDens[IDvoro_in_void[Ncells-1]]
-        frac = (threshold[ith] * VolPrevious - numerator_dens_previous) / (1. / zDens[IDvoro_in_void[Ncells-1]] - threshold[ith] * VoroVol[IDvoro_in_void[Ncells-1]])
+        numerator_dens_previous = numerator_dens - 1./tracer_dens[IDvoro_in_void[Ncells-1]]
+        frac = (threshold[ith] * VolPrevious - numerator_dens_previous) / (1. / tracer_dens[IDvoro_in_void[Ncells-1]] - threshold[ith] * VoroVol[IDvoro_in_void[Ncells-1]])
         #if Ncells == numPart frac is forced to be 1
         frac *= int(Ncells < numPart) 
         frac += int(Ncells == numPart)
@@ -234,50 +234,54 @@ def cluster_accretion(
         
 
 @jit(nopython=True)
-def get_void_properties(Xcm_interp, Vol_interp, Ncells_in_void, eigenvalues, eigenvectors,IDvoro_in_void,Nthresholds,VoroXYZ,VoroVol,zDens):
+def get_void_properties(Xcm_interp, Vol_interp, Ncells_in_void, eigenvalues, eigenvectors,IDvoro_in_void,Nthresholds,VoroXYZ,VoroVol,tracer_dens):
     shape_matrix = np.zeros((3,3))
     for ith in range(Nthresholds):
+        if Ncells_in_void[ith] <= 1.:     
+            continue  
         frac = Ncells_in_void[ith] % 1
         Ncells_int  = int(Ncells_in_void[ith])
         #Vol_interp[ith] = VolPrevious + frac * VoroVol[IDvoro_in_void[Ncells-1]] 
         Vol_interp[ith] = np.sum(VoroVol[IDvoro_in_void[:Ncells_int]]) + frac * VoroVol[IDvoro_in_void[Ncells_int]] 
 
-        Coord_norm = np.sum(1. / (VoroVol[IDvoro_in_void[:Ncells_int]] * zDens[IDvoro_in_void[:Ncells_int]])) +  \
-                    1. / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * zDens[IDvoro_in_void[Ncells_int]])
-        Xcm_interp[ith,0] = (np.sum(VoroXYZ[IDvoro_in_void[:Ncells_int],0] / (VoroVol[IDvoro_in_void[:Ncells_int]] * zDens[IDvoro_in_void[:Ncells_int]])) + 
-                            VoroXYZ[IDvoro_in_void[Ncells_int],0] / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * zDens[IDvoro_in_void[Ncells_int]])) / Coord_norm
-        Xcm_interp[ith,1] = (np.sum(VoroXYZ[IDvoro_in_void[:Ncells_int],1] / (VoroVol[IDvoro_in_void[:Ncells_int]] * zDens[IDvoro_in_void[:Ncells_int]])) + 
-                            VoroXYZ[IDvoro_in_void[Ncells_int],1] / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * zDens[IDvoro_in_void[Ncells_int]])) / Coord_norm
-        Xcm_interp[ith,2] = (np.sum(VoroXYZ[IDvoro_in_void[:Ncells_int],2] / (VoroVol[IDvoro_in_void[:Ncells_int]] * zDens[IDvoro_in_void[:Ncells_int]])) + 
-                            VoroXYZ[IDvoro_in_void[Ncells_int],2] / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * zDens[IDvoro_in_void[Ncells_int]])) / Coord_norm
+        Coord_norm = np.sum(1. / (VoroVol[IDvoro_in_void[:Ncells_int]] * tracer_dens[IDvoro_in_void[:Ncells_int]])) +  \
+                    1. / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * tracer_dens[IDvoro_in_void[Ncells_int]])
+        Xcm_interp[ith,0] = (np.sum(VoroXYZ[IDvoro_in_void[:Ncells_int],0] / (VoroVol[IDvoro_in_void[:Ncells_int]] * tracer_dens[IDvoro_in_void[:Ncells_int]])) + 
+                            VoroXYZ[IDvoro_in_void[Ncells_int],0] / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * tracer_dens[IDvoro_in_void[Ncells_int]])) / Coord_norm
+        Xcm_interp[ith,1] = (np.sum(VoroXYZ[IDvoro_in_void[:Ncells_int],1] / (VoroVol[IDvoro_in_void[:Ncells_int]] * tracer_dens[IDvoro_in_void[:Ncells_int]])) + 
+                            VoroXYZ[IDvoro_in_void[Ncells_int],1] / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * tracer_dens[IDvoro_in_void[Ncells_int]])) / Coord_norm
+        Xcm_interp[ith,2] = (np.sum(VoroXYZ[IDvoro_in_void[:Ncells_int],2] / (VoroVol[IDvoro_in_void[:Ncells_int]] * tracer_dens[IDvoro_in_void[:Ncells_int]])) + 
+                            VoroXYZ[IDvoro_in_void[Ncells_int],2] / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * tracer_dens[IDvoro_in_void[Ncells_int]])) / Coord_norm
         
         # geometrical shape
         for i in range(3):
-            shape_matrix[i,i] = (np.sum((VoroXYZ[IDvoro_in_void[:Ncells_int],(i+1) % 3]**2 + VoroXYZ[IDvoro_in_void[:Ncells_int],(i+2) % 3]**2) / zDens[IDvoro_in_void[:Ncells_int]]) + 
-                                    (VoroXYZ[IDvoro_in_void[Ncells_int],(i+1) % 3]**2 + VoroXYZ[IDvoro_in_void[Ncells_int],(i+2) % 3]**2)  * frac / zDens[IDvoro_in_void[Ncells_int]])
+            shape_matrix[i,i] = (np.sum((VoroXYZ[IDvoro_in_void[:Ncells_int],(i+1) % 3]**2 + VoroXYZ[IDvoro_in_void[:Ncells_int],(i+2) % 3]**2) / tracer_dens[IDvoro_in_void[:Ncells_int]]) + 
+                                    (VoroXYZ[IDvoro_in_void[Ncells_int],(i+1) % 3]**2 + VoroXYZ[IDvoro_in_void[Ncells_int],(i+2) % 3]**2)  * frac / tracer_dens[IDvoro_in_void[Ncells_int]])
             for j in range(i):
-                shape_matrix[i,j] = -(np.sum(VoroXYZ[IDvoro_in_void[:Ncells_int],i] * VoroXYZ[IDvoro_in_void[:Ncells_int],j] / zDens[IDvoro_in_void[:Ncells_int]]) + 
-                                        VoroXYZ[IDvoro_in_void[Ncells_int],i] * VoroXYZ[IDvoro_in_void[Ncells_int],j] * frac / zDens[IDvoro_in_void[Ncells_int]])
+                shape_matrix[i,j] = -(np.sum(VoroXYZ[IDvoro_in_void[:Ncells_int],i] * VoroXYZ[IDvoro_in_void[:Ncells_int],j] / tracer_dens[IDvoro_in_void[:Ncells_int]]) + 
+                                        VoroXYZ[IDvoro_in_void[Ncells_int],i] * VoroXYZ[IDvoro_in_void[Ncells_int],j] * frac / tracer_dens[IDvoro_in_void[Ncells_int]])
                 shape_matrix[j,i] = shape_matrix[i,j]
 
         eigenvalues[ith,:], eigenvectors[ith,:,:] = np.linalg.eig(shape_matrix)
 
 
 @jit(nopython=True)
-def get_void_properties_pbc(Xcm_interp, Vol_interp, Ncells_in_void, eigenvalues, eigenvectors,IDvoro_in_void,Nthresholds,VoroXYZ,VoroVol,zDens,Lbox):
+def get_void_properties_pbc(Xcm_interp, Vol_interp, Ncells_in_void, eigenvalues, eigenvectors,IDvoro_in_void,Nthresholds,VoroXYZ,VoroVol,tracer_dens,Lbox):
     shape_matrix = np.zeros((3,3))
 
-    Ncells_tot =  int(Ncells_in_void[ith]) + int((Ncells_in_void[ith] % 1) > 0)
+    Ncells_tot =  int(Ncells_in_void[-1]) + int((Ncells_in_void[-1] % 1) > 0)
 
-    sgn_pbc = np.array([1.,-1.])[(VoroXYZ[IDvoro_in_void[0],:] > 0.5 * Lbox).astype(np.int_)]
+    sgn_pbc = np.array([1.,-1.])[(VoroXYZ[IDvoro_in_void[0],:] < 0.5 * Lbox).astype(np.int_)]
     xyz_loop = np.copy(VoroXYZ[IDvoro_in_void[:Ncells_tot],:])
     mask = np.empty(Ncells_tot,dtype=np.bool_)
     for i in range(3):
-        mask[:] = np.abs(xyz_loop[:,i] - xyz_loop[:,0]) > 0.5 * Lbox
+        mask[:] = np.abs(xyz_loop[:,i] - xyz_loop[0,i]) > 0.5 * Lbox
         xyz_loop[mask,i] += sgn_pbc[i] * Lbox
 
 
     for ith in range(Nthresholds):
+        if Ncells_in_void[ith] <= 1.:     
+            continue  
         frac = Ncells_in_void[ith] % 1
         Ncells_int = int(Ncells_in_void[ith])
         #Vol_interp[ith] = VolPrevious + frac * VoroVol[IDvoro_in_void[Ncells-1]] 
@@ -285,24 +289,24 @@ def get_void_properties_pbc(Xcm_interp, Vol_interp, Ncells_in_void, eigenvalues,
 
 
 
-        Coord_norm = np.sum(1. / (VoroVol[IDvoro_in_void[:Ncells_int]] * zDens[IDvoro_in_void[:Ncells_int]])) +  \
-                    1. / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * zDens[IDvoro_in_void[Ncells_int]])
-        Xcm_interp[ith,0] = (np.sum(xyz_loop[:Ncells_int,0] / (VoroVol[IDvoro_in_void[:Ncells_int]] * zDens[IDvoro_in_void[:Ncells_int]])) + 
-                            xyz_loop[Ncells_int,0] / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * zDens[IDvoro_in_void[Ncells_int]])) / Coord_norm
-        Xcm_interp[ith,1] = (np.sum(xyz_loop[:Ncells_int,1] / (VoroVol[IDvoro_in_void[:Ncells_int]] * zDens[IDvoro_in_void[:Ncells_int]])) + 
-                            xyz_loop[Ncells_int,1] / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * zDens[IDvoro_in_void[Ncells_int]])) / Coord_norm
-        Xcm_interp[ith,2] = (np.sum(xyz_loop[:Ncells_int,2] / (VoroVol[IDvoro_in_void[:Ncells_int]] * zDens[IDvoro_in_void[:Ncells_int]])) + 
-                            xyz_loop[Ncells_int,2] / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * zDens[IDvoro_in_void[Ncells_int]])) / Coord_norm
+        Coord_norm = np.sum(1. / (VoroVol[IDvoro_in_void[:Ncells_int]] * tracer_dens[IDvoro_in_void[:Ncells_int]])) +  \
+                    1. / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * tracer_dens[IDvoro_in_void[Ncells_int]])
+        Xcm_interp[ith,0] = (np.sum(xyz_loop[:Ncells_int,0] / (VoroVol[IDvoro_in_void[:Ncells_int]] * tracer_dens[IDvoro_in_void[:Ncells_int]])) + 
+                            xyz_loop[Ncells_int,0] / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * tracer_dens[IDvoro_in_void[Ncells_int]])) / Coord_norm
+        Xcm_interp[ith,1] = (np.sum(xyz_loop[:Ncells_int,1] / (VoroVol[IDvoro_in_void[:Ncells_int]] * tracer_dens[IDvoro_in_void[:Ncells_int]])) + 
+                            xyz_loop[Ncells_int,1] / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * tracer_dens[IDvoro_in_void[Ncells_int]])) / Coord_norm
+        Xcm_interp[ith,2] = (np.sum(xyz_loop[:Ncells_int,2] / (VoroVol[IDvoro_in_void[:Ncells_int]] * tracer_dens[IDvoro_in_void[:Ncells_int]])) + 
+                            xyz_loop[Ncells_int,2] / (frac * VoroVol[IDvoro_in_void[Ncells_int]] * tracer_dens[IDvoro_in_void[Ncells_int]])) / Coord_norm
         
         Xcm_interp[ith,:] %= Lbox
         
         # geometrical shape
         for i in range(3):
-            shape_matrix[i,i] = (np.sum((xyz_loop[:Ncells_int,(i+1) % 3]**2 + xyz_loop[:Ncells_int,(i+2) % 3]**2) / zDens[IDvoro_in_void[:Ncells_int]]) + 
-                                    (xyz_loop[Ncells_int,(i+1) % 3]**2 + xyz_loop[Ncells_int,(i+2) % 3]**2)  * frac / zDens[IDvoro_in_void[Ncells_int]])
+            shape_matrix[i,i] = (np.sum((xyz_loop[:Ncells_int,(i+1) % 3]**2 + xyz_loop[:Ncells_int,(i+2) % 3]**2) / tracer_dens[IDvoro_in_void[:Ncells_int]]) + 
+                                    (xyz_loop[Ncells_int,(i+1) % 3]**2 + xyz_loop[Ncells_int,(i+2) % 3]**2)  * frac / tracer_dens[IDvoro_in_void[Ncells_int]])
             for j in range(i):
-                shape_matrix[i,j] = -(np.sum(xyz_loop[:Ncells_int,i] * xyz_loop[:Ncells_int,j] / zDens[IDvoro_in_void[:Ncells_int]]) + 
-                                        xyz_loop[Ncells_int,i] * xyz_loop[Ncells_int,j] * frac / zDens[IDvoro_in_void[Ncells_int]])
+                shape_matrix[i,j] = -(np.sum(xyz_loop[:Ncells_int,i] * xyz_loop[:Ncells_int,j] / tracer_dens[IDvoro_in_void[:Ncells_int]]) + 
+                                        xyz_loop[Ncells_int,i] * xyz_loop[Ncells_int,j] * frac / tracer_dens[IDvoro_in_void[Ncells_int]])
                 shape_matrix[j,i] = shape_matrix[i,j]
 
         eigenvalues[ith,:], eigenvectors[ith,:,:] = np.linalg.eig(shape_matrix)
@@ -313,7 +317,7 @@ def get_void_properties_pbc(Xcm_interp, Vol_interp, Ncells_in_void, eigenvalues,
 
 
 @jit(nopython=True)
-def cluster_accretion_loops_sequential(ID_voro_dict, threshold_arr,ID_core_arr,neighbor_ptr,neighbor_ids,VoroXYZ,VoroVol,zDens,max_num_part):
+def cluster_accretion_loops_sequential(ID_voro_dict, threshold_arr,ID_core_arr,neighbor_ptr,neighbor_ids,VoroXYZ,VoroVol,tracer_dens,max_num_part):
     Nthresholds = threshold_arr.shape[0]
     Num_vds = ID_core_arr.shape[0]
     #numPart = VoroXYZ.shape[0]
@@ -322,14 +326,14 @@ def cluster_accretion_loops_sequential(ID_voro_dict, threshold_arr,ID_core_arr,n
 
     for iv in range(Num_vds):
         ID_voro_dict[iv] = np.zeros(max_num_part,dtype=np.int_)
-        cluster_accretion(Ncells_in_void[iv,:], ID_voro_dict[iv],ID_core_arr[iv],max_num_part,neighbor_ptr,neighbor_ids,Nthresholds,threshold_arr,VoroXYZ,VoroVol,zDens)
+        cluster_accretion(Ncells_in_void[iv,:], ID_voro_dict[iv],ID_core_arr[iv],max_num_part,neighbor_ptr,neighbor_ids,Nthresholds,threshold_arr,VoroXYZ,VoroVol,tracer_dens)
         Ncells_loop = int(Ncells_in_void[iv,-1]) + int((Ncells_in_void[iv,-1]%1) > 0)
         ID_voro_dict[iv] = ID_voro_dict[iv][:Ncells_loop]
     return Ncells_in_void
 
 
 @jit(nopython=True,parallel=True)
-def cluster_accretion_loops_parallel(ID_voro_dict, threshold_arr,ID_core_arr,neighbor_ptr,neighbor_ids,VoroXYZ,VoroVol,zDens,max_num_part):
+def cluster_accretion_loops_parallel(ID_voro_dict, threshold_arr,ID_core_arr,neighbor_ptr,neighbor_ids,VoroXYZ,VoroVol,tracer_dens,max_num_part):
     Nthresholds = threshold_arr.shape[0]
     Num_vds = ID_core_arr.shape[0]
     #numPart = VoroXYZ.shape[0]
@@ -337,15 +341,15 @@ def cluster_accretion_loops_parallel(ID_voro_dict, threshold_arr,ID_core_arr,nei
     Ncells_in_void = np.zeros((Num_vds,Nthresholds))
 
     for iv in prange(Num_vds):
-        cluster_accretion(Ncells_in_void[iv,:],ID_voro_dict[iv],ID_core_arr[iv],max_num_part,neighbor_ptr,neighbor_ids,Nthresholds,threshold_arr,VoroXYZ,VoroVol,zDens)
+        cluster_accretion(Ncells_in_void[iv,:],ID_voro_dict[iv],ID_core_arr[iv],max_num_part,neighbor_ptr,neighbor_ids,Nthresholds,threshold_arr,VoroXYZ,VoroVol,tracer_dens)
         #Xcm[iv,:,:], Vol_interp[iv,:], Ncells_in_void[iv,:], ell_eigenvalues[iv,:,:], ell_eigenvectors[iv,:,:,:] = \
-        #    cluster_accretion(ID_voro_dict[iv],ID_core_arr[iv],max_num_part,neighbor_ptr,neighbor_ids,Nthresholds,threshold_arr,VoroXYZ,VoroVol,zDens)
+        #    cluster_accretion(ID_voro_dict[iv],ID_core_arr[iv],max_num_part,neighbor_ptr,neighbor_ids,Nthresholds,threshold_arr,VoroXYZ,VoroVol,tracer_dens)
     return Ncells_in_void
 
 
 
 @jit(nopython=True,parallel=True)
-def get_void_properties_loops(ID_voro_dict, Ncells_in_void, threshold_arr,ID_core_arr,VoroXYZ,VoroVol,zDens):
+def get_void_properties_loops(ID_voro_dict, Ncells_in_void, threshold_arr,VoroXYZ,VoroVol,tracer_dens):
     Nthresholds = threshold_arr.shape[0]
     Num_vds = Ncells_in_void.shape[0]
     #numPart = VoroXYZ.shape[0]
@@ -357,15 +361,15 @@ def get_void_properties_loops(ID_voro_dict, Ncells_in_void, threshold_arr,ID_cor
 
     for iv in prange(Num_vds):
         get_void_properties(Xcm[iv,:,:], Vol_interp[iv,:], Ncells_in_void[iv,:], ell_eigenvalues[iv,:,:], ell_eigenvectors[iv,:,:,:],
-                            ID_voro_dict[iv],Nthresholds,VoroXYZ,VoroVol,zDens)
+                            ID_voro_dict[iv],Nthresholds,VoroXYZ,VoroVol,tracer_dens)
         #Xcm[iv,:,:], Vol_interp[iv,:], Ncells_in_void[iv,:], ell_eigenvalues[iv,:,:], ell_eigenvectors[iv,:,:,:] = \
-        #    cluster_accretion(ID_voro_dict[iv],ID_core_arr[iv],max_num_part,neighbor_ptr,neighbor_ids,Nthresholds,threshold_arr,VoroXYZ,VoroVol,zDens)
+        #    cluster_accretion(ID_voro_dict[iv],ID_core_arr[iv],max_num_part,neighbor_ptr,neighbor_ids,Nthresholds,threshold_arr,VoroXYZ,VoroVol,tracer_dens)
     return Xcm, Vol_interp, ell_eigenvalues, ell_eigenvectors
 
 
 
 @jit(nopython=True,parallel=True)
-def get_void_properties_loops_pbc(ID_voro_dict, Ncells_in_void,threshold_arr,ID_core_arr,VoroXYZ,VoroVol,zDens,Lbox):
+def get_void_properties_loops_pbc(ID_voro_dict, Ncells_in_void,threshold_arr,VoroXYZ,VoroVol,tracer_dens,Lbox):
     Nthresholds = threshold_arr.shape[0]
     Num_vds = Ncells_in_void.shape[0]
     #numPart = VoroXYZ.shape[0]
@@ -377,18 +381,18 @@ def get_void_properties_loops_pbc(ID_voro_dict, Ncells_in_void,threshold_arr,ID_
 
     for iv in prange(Num_vds):
         get_void_properties_pbc(Xcm[iv,:,:], Vol_interp[iv,:], Ncells_in_void[iv,:], ell_eigenvalues[iv,:,:], ell_eigenvectors[iv,:,:,:],
-                            ID_voro_dict[iv],Nthresholds,VoroXYZ,VoroVol,zDens,Lbox)
+                            ID_voro_dict[iv],Nthresholds,VoroXYZ,VoroVol,tracer_dens,Lbox)
         #Xcm[iv,:,:], Vol_interp[iv,:], Ncells_in_void[iv,:], ell_eigenvalues[iv,:,:], ell_eigenvectors[iv,:,:,:] = \
-        #    cluster_accretion(ID_voro_dict[iv],ID_core_arr[iv],max_num_part,neighbor_ptr,neighbor_ids,Nthresholds,threshold_arr,VoroXYZ,VoroVol,zDens)
+        #    cluster_accretion(ID_voro_dict[iv],ID_core_arr[iv],max_num_part,neighbor_ptr,neighbor_ids,Nthresholds,threshold_arr,VoroXYZ,VoroVol,tracer_dens)
     return Xcm, Vol_interp, ell_eigenvalues, ell_eigenvectors
 
 
 
 
-def voronoi_threshold(threshold,ID_core_arr,neighbor_ptr,neighbor_ids,VoroXYZ,VoroVol,zDens,Lbox=-1,nthreads=-1,verbose=True,max_num_part=-1):
+def voronoi_threshold(threshold,ID_core_arr,neighbor_ptr,neighbor_ids,VoroXYZ,VoroVol,tracer_dens,Lbox=-1,nthreads=-1,verbose=True,max_num_part=-1):
 
     verboseprint = print if verbose else lambda *a, **k: None
-    verboseprint('\n    voronoi_threshold started',flush=True)
+    verboseprint('\n    voronoi_threshold started.',['','PBC on with Lbox: '+str(Lbox)][int(Lbox>0)],flush=True)
     try:
         nthreads_tot = int(os.environ["OMP_NUM_THREADS"])
     except:
@@ -417,7 +421,7 @@ def voronoi_threshold(threshold,ID_core_arr,neighbor_ptr,neighbor_ids,VoroXYZ,Vo
     verboseprint('\n    max_num_part set to',max_num_part,flush=True)
 
     Num_vds = ID_core_arr.shape[0]
-    input_mask = np.arange(Num_vds)[(1. / (VoroVol[ID_core_arr] * zDens[ID_core_arr])) <= np.max(threshold_arr)]
+    input_mask = np.arange(Num_vds)[(1. / (VoroVol[ID_core_arr] * tracer_dens[ID_core_arr])) <= np.max(threshold_arr)]
     Num_selection = input_mask.shape[0]
 
     ID_voro_dict = Dict.empty(
@@ -430,15 +434,15 @@ def voronoi_threshold(threshold,ID_core_arr,neighbor_ptr,neighbor_ids,VoroXYZ,Vo
         for i_sel in range(Num_selection):
             ID_voro_dict[i_sel] = np.zeros(max_num_part,dtype=np.int_)
         Ncells_in_void = cluster_accretion_loops_parallel(
-            ID_voro_dict, threshold_arr,ID_core_arr[input_mask],neighbor_ptr,neighbor_ids,VoroXYZ,VoroVol,zDens,max_num_part)
+            ID_voro_dict, threshold_arr,ID_core_arr[input_mask],neighbor_ptr,neighbor_ids,VoroXYZ,VoroVol,tracer_dens,max_num_part)
     else:
         Ncells_in_void = cluster_accretion_loops_sequential(
-            ID_voro_dict, threshold_arr,ID_core_arr[input_mask],neighbor_ptr,neighbor_ids,VoroXYZ,VoroVol,zDens,max_num_part)
+            ID_voro_dict, threshold_arr,ID_core_arr[input_mask],neighbor_ptr,neighbor_ids,VoroXYZ,VoroVol,tracer_dens,max_num_part)
     if Lbox < 0:
-        Xcm, Vol_interp, ell_eigenvalues, ell_eigenvectors = get_void_properties_loops(ID_voro_dict, Ncells_in_void, threshold_arr,ID_core_arr,VoroXYZ,VoroVol,zDens)
+        Xcm, Vol_interp, ell_eigenvalues, ell_eigenvectors = get_void_properties_loops(ID_voro_dict, Ncells_in_void, threshold_arr,VoroXYZ,VoroVol,tracer_dens)
     else:
         verboseprint('\n    get void properties, PBC on, Lbox:',Lbox,flush=True)
-        Xcm, Vol_interp, ell_eigenvalues, ell_eigenvectors = get_void_properties_loops_pbc(ID_voro_dict, Ncells_in_void, threshold_arr,ID_core_arr,VoroXYZ,VoroVol,zDens,Lbox)
+        Xcm, Vol_interp, ell_eigenvalues, ell_eigenvectors = get_void_properties_loops_pbc(ID_voro_dict, Ncells_in_void, threshold_arr,VoroXYZ,VoroVol,tracer_dens,Lbox)
 
     dt = time.time() - t0
     verboseprint("    done,",StrHminSec(dt),'\n',flush=True)

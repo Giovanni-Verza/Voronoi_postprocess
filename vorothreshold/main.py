@@ -54,7 +54,7 @@ def compute_overlaps_all_parallel_compiled(
 
 
 def compute_overlaps_all_parallel(
-    ids_threshold,frac_ovlp_arr, Xcm, Vol_interp, Ncells_in_void, VoroXYZ, VoroVol, ID_voro_dict,ids_selected,nthreads,verbose):
+    ids_threshold,frac_ovlp_arr, Xcm, Vol_interp, Ncells_in_void, VoroXYZ, VoroVol, ID_voro_dict,Lbox,lightcone,ids_selected,nthreads,verbose):
 
     Nthresholds = ids_threshold.shape[0]
     Nfrac = frac_ovlp_arr.shape[0]
@@ -81,7 +81,7 @@ def compute_overlaps_all_parallel(
         #print(ith,flush=True)
         ids_ovlp[ith], Vol_ovlp, Vol_ovlp_frac[ith], num_ovlps[ith] = overlapping_fraction(
             Xcm[:,ids_threshold[ith],:], Vol_interp[:,ids_threshold[ith]], Ncells_in_void[:,ids_threshold[ith]], VoroXYZ, VoroVol, ID_voro_dict,
-            id_selected=ids_selected[ids_threshold[ith]],nthreads=nthreads,verbose=verbose)
+            Lbox=Lbox,lightcone=lightcone,id_selected=ids_selected[ids_threshold[ith]],nthreads=nthreads,verbose=verbose)
         sor_by_vol[ith] = (np.argsort(Vol_interp[ids_selected[ith],ith])[::-1]).astype(dtype=np.int_, order='C')
 
 
@@ -92,13 +92,15 @@ def compute_overlaps_all_parallel(
 
 
 class voronoi_threshold_finder:
-    def __init__(self,threshold,lightcone=True,ID_core=None,neighbor_ptr=None,neighbor_ids=None,VoroXYZ=None,VoroVol=None,tracer_dens=None,ang_paddig_rad=None,
+    def __init__(self,threshold,lightcone=True,Lbox=-1.,ID_core=None,neighbor_ptr=None,neighbor_ids=None,VoroXYZ=None,VoroVol=None,tracer_dens=None,ang_paddig_rad=None,
                  vide_path=None,comov_range=None,z_range=None,OmegaM=None,w0=-1.,wa=0.,nthreads=-1,verbose=True,max_num_part=-1):
         
         if verbose:
             verbose = True
         self.verbose = verbose
         self.z_from_dist = None
+        self.__Lbox = Lbox
+        self.__lightcone = lightcone
 
         
         verboseprint = print if verbose else lambda *a, **k: None
@@ -118,11 +120,11 @@ class voronoi_threshold_finder:
         self.nthreads = nthreads
  
 
-        if not lightcone:
-            raise ValueError('Simulation box option has not been developed yet. This class currently works with lightcone=True option only.')
-        else:
-            if tracer_dens is None:
-                raise ValueError('tracer_dens not passed. When lightcone=True the number density of each tracer is required.')
+        #if not lightcone:
+        #    raise ValueError('Simulation box option has not been developed yet. This class currently works with lightcone=True option only.')
+        #else:
+        if lightcone & (tracer_dens is None):
+            raise ValueError('tracer_dens not passed. When lightcone=True the number density of each tracer is required.')
 
         if np.isscalar(threshold):
             self.threshold = np.array([threshold])
@@ -142,26 +144,37 @@ class voronoi_threshold_finder:
             #if ID_core is None:
             # Load ids of cells belonging to minima
             ID_core = np.loadtxt(vide_path+'/untrimmed_voidDesc_all_'+vide_out_name+'.out', comments='#', skiprows=2)[:,2].astype(np.int_)
-            
-            if OmegaM is None:
-                OmegaM = load_pickle_safe(vide_path+'/sample_info.dat')['omegaM']
-            else:
-                OmegaM_VIDE = load_pickle_safe(vide_path+'/sample_info.dat')['omegaM']
-                if OmegaM != OmegaM_VIDE:
-                    raise Warning('OmegaM passed differs from the value used for Vide. Passed: '+str(OmegaM)+', Vide:'+str(OmegaM_VIDE))
-            
-            if w0 != -1.:
-                raise Warning('w0 passed differs from the value used for Vide. Passed: '+str(w0)+', Vide: -1.0')
-            if wa != 0.:
-                raise Warning('wa passed differs from the value used for Vide. Passed: '+str(wa)+', Vide: 0.0')
-
-            dist_z = ComovingDistanceOverh(OmegaM,w0,wa)
-
             # Load Voronoi cells volume, ids and tracers position
             ids_voro, self.VoroVol, self.VoroXYZ, self.RAvoro, self.DECvoro, redshift_voro = read_voronoi_vide(vide_path,vide_out_name)
-            dist_voro = dist_z.get_dist(redshift_voro)
-            self.VoroXYZ[:,:] = np.array(from_rRAdec_to_XYZ(dist_voro,self.RAvoro,self.DECvoro)).T
+
+            if lightcone:
+                if OmegaM is None:
+                    OmegaM = load_pickle_safe(vide_path+'/sample_info.dat')['omegaM']
+                else:
+                    OmegaM_VIDE = load_pickle_safe(vide_path+'/sample_info.dat')['omegaM']
+                    if OmegaM != OmegaM_VIDE:
+                        raise Warning('OmegaM passed differs from the value used for Vide. Passed: '+str(OmegaM)+', Vide:'+str(OmegaM_VIDE))
+                
+                if w0 != -1.:
+                    raise Warning('w0 passed differs from the value used for Vide. Passed: '+str(w0)+', Vide: -1.0')
+                if wa != 0.:
+                    raise Warning('wa passed differs from the value used for Vide. Passed: '+str(wa)+', Vide: 0.0')
+
+                dist_z = ComovingDistanceOverh(OmegaM,w0,wa)
+
+                dist_voro = dist_z.get_dist(redshift_voro)
+                self.VoroXYZ[:,:] = np.array(from_rRAdec_to_XYZ(dist_voro,self.RAvoro,self.DECvoro)).T
+                
+            else:
+                self.__Lbox = load_pickle_safe(vide_path+'/sample_info.dat')['boxLen']
+                verboseprint('    Lbox from VIDE:',self.__Lbox,flush=True)
+                if (tracer_dens is None):
+                    tracer_dens = np.full(self.VoroVol.shape[0],self.VoroVol.shape[0]/self.__Lbox**3) #self.__Lbox**3/self.VoroVol.shape[0]/self.VoroVol
+                else:
+                    raise Warning('tracer_dens passed differs from None, tracer_dens will not be computed from Vide output.')
+                
             del ids_voro, redshift_voro
+
 
             verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
 
@@ -173,69 +186,83 @@ class voronoi_threshold_finder:
             if (neighbor_ptr is None) or (neighbor_ids is None):
                 raise ValueError('VTF not passed. Either pass neighbor_ptr and neighbor_ids or vide_path.')
 
-        if (not (comov_range is None)) & (not (z_range is None)) & (lightcone):
-            raise Warning('both comov_range and z_range are passed, only comov_range will be considered.')
-        if (comov_range is None) & (z_range is None) & (lightcone):
-            i_min = np.argmin(dist_voro)
-            i_max = np.argmax(dist_voro)
-            comov_range = [dist_voro[i_min] + 3.5 * (tracer_dens[i_min] ** (-1./3.)),
-                           dist_voro[i_max] - 3.5 * (tracer_dens[i_max] ** (-1./3.))]
-            raise ValueError('comov_range and z_range are both None. One of them is required when lightcone = True.')
-        if (comov_range is None):
-            comov_range = dist_z.get_dist(np.array(z_range))
-       
-        comov_range = np.array(comov_range)
-        if len(comov_range.shape) == 1:
-            self.comov_range = np.empty((len(threshold),2))
-            self.comov_range[:,0] = min(comov_range)
-            self.comov_range[:,1] = max(comov_range)
-        elif comov_range.shape[0] < len(threshold):
-            self.comov_range = np.empty((len(threshold),2))
-            self.comov_range[:,0] = min(comov_range)
-            self.comov_range[:,1] = max(comov_range)
-            raise Warning('comov_range shape do not match threshold lenght. Only min and max of comov_range will be considered')
-
 
 
         #verboseprint('    voronoi_threshold started, nthreads =',nthreads,flush=True)
         t0 = time.time()
         # Get threshold void properties for all the threshold values passed
         self.void_selected, self.ID_voro_dict, self.Xcm, self.Vol_interp, self.Ncells_in_void, self.ell_eigenvalues, self.ell_eigenvectors = voronoi_threshold(
-            self.threshold,ID_core,neighbor_ptr,neighbor_ids,self.VoroXYZ,self.VoroVol,tracer_dens,nthreads=nthreads,verbose=verbose,max_num_part=max_num_part)
+            self.threshold,ID_core,neighbor_ptr,neighbor_ids,self.VoroXYZ,self.VoroVol,tracer_dens,Lbox=self.__Lbox,nthreads=nthreads,verbose=verbose,max_num_part=max_num_part)
         verboseprint('        main computation done:',StrHminSec(time.time()-t0),flush=True)
         
 
-        verboseprint('    angular and radial mask started.',flush=True)
-        t0 = time.time()
-
         self.ids_selected = dict()
-        self.healpix_mask = dict()
-        for ith in range(len(threshold)):
-            if ang_paddig_rad is None:
-                trs_mask = (dist_voro >= self.comov_range[ith,0]) & (dist_voro <= self.comov_range[ith,1])
-                ang_paddig_rad = 2. * np.max(tracer_dens[trs_mask]**(-1./3.) / dist_voro[trs_mask])
-            if ith == 0:
-                try:
-                    mask_pix = hp.read_map(vide_path + '/mask_map.fits')
-                    nside = hp.get_nside(mask_pix)
-                    verboseprint('    angular mask loaded, nside =',nside,flush=True)
-                except:
-                    nside = 128
-                    npix = hp.nside2npix(nside)
-                    mask_pix = np.zeros(npix)
-                    pix = hp.ang2pix(nside, np.pi/2. - self.DECvoro*np.pi/180., np.pi/180.*self.RAvoro)
-                    for ii in np.arange(npix)[~mask_pix.astype(np.bool_)]:
-                        if np.sum(mask_pix[hp.get_all_neighbours(nside,ii)]) >= 6:
-                            mask_pix[ii] = 1.
-                    verboseprint('    angular mask not in path, builded with nside =',nside,flush=True)
-                npadding_ang = int((ang_paddig_rad + hp.nside2resol(nside)) / hp.nside2resol(nside))
-                verboseprint('    ang_paddig_rad =',ang_paddig_rad,'npadding_ang =',npadding_ang,flush=True)
+        
+        if not lightcone:
+            for ith in range(len(threshold)):
+                self.ids_selected[ith] = np.arange(self.Ncells_in_void.shape[0])[self.Ncells_in_void[:,ith] > 1.]
+        else:
+            if (not (comov_range is None)) & (not (z_range is None)) & (lightcone):
+                raise Warning('both comov_range and z_range are passed, only comov_range will be considered.')
+            if (comov_range is None) & (z_range is None) & (lightcone):
+                i_min = np.argmin(dist_voro)
+                i_max = np.argmax(dist_voro)
+                comov_range = [dist_voro[i_min] + 3.5 * (tracer_dens[i_min] ** (-1./3.)),
+                            dist_voro[i_max] - 3.5 * (tracer_dens[i_max] ** (-1./3.))]
+                raise ValueError('comov_range and z_range are both None. One of them is required when lightcone = True.')
+            if (comov_range is None):
+                comov_range = dist_z.get_dist(np.array(z_range))
+        
+            comov_range = np.array(comov_range)
+            if len(comov_range.shape) == 1:
+                self.comov_range = np.empty((len(threshold),2))
+                self.comov_range[:,0] = min(comov_range)
+                self.comov_range[:,1] = max(comov_range)
+            elif comov_range.shape[0] < len(threshold):
+                self.comov_range = np.empty((len(threshold),2))
+                self.comov_range[:,0] = min(comov_range)
+                self.comov_range[:,1] = max(comov_range)
+                raise Warning('comov_range shape do not match threshold lenght. Only min and max of comov_range will be considered')
 
-            #mask_ids = borders_mask_bruteforce(self.RAvoro, self.DECvoro, self.Ncells_in_void[:,ith], self.ID_voro_dict,nside)
-            mask_ids, mask_voro, self.healpix_mask[ith] = borders_mask(mask_pix,self.RAvoro,self.DECvoro,self.ID_voro_dict,self.Ncells_in_void[:,ith],npadding_ang,nthreads=nthreads)
-            self.ids_selected[ith] = dist_limit_mask(mask_ids,self.Xcm[:,ith,:],self.comov_range[ith,0],self.comov_range[ith,1],
-                                        self.VoroXYZ,self.Ncells_in_void[:,ith],self.ID_voro_dict) 
-        verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
+
+            verboseprint('    angular and radial mask started.',flush=True)
+            t0 = time.time()
+
+            self.healpix_mask = dict()
+            for ith in range(len(threshold)):
+                if ang_paddig_rad is None:
+                    trs_mask = (dist_voro >= self.comov_range[ith,0]) & (dist_voro <= self.comov_range[ith,1])
+                    ang_paddig_rad = 2. * np.max(tracer_dens[trs_mask]**(-1./3.) / dist_voro[trs_mask])
+                if ith == 0:
+                    try:
+                        mask_pix = hp.read_map(vide_path + '/mask_map.fits')
+                        nside = hp.get_nside(mask_pix)
+                        verboseprint('    angular mask loaded, nside =',nside,flush=True)
+                    except:
+                        nside = 128
+                        npix = hp.nside2npix(nside)
+                        mask_pix = np.zeros(npix)
+                        pix = hp.ang2pix(nside, np.pi/2. - self.DECvoro*np.pi/180., np.pi/180.*self.RAvoro)
+                        for ii in np.arange(npix)[~mask_pix.astype(np.bool_)]:
+                            if np.sum(mask_pix[hp.get_all_neighbours(nside,ii)]) >= 6:
+                                mask_pix[ii] = 1.
+                        verboseprint('    angular mask not in path, builded with nside =',nside,flush=True)
+                    npadding_ang = int((ang_paddig_rad + hp.nside2resol(nside)) / hp.nside2resol(nside))
+                    verboseprint('    ang_paddig_rad =',ang_paddig_rad,'npadding_ang =',npadding_ang,flush=True)
+
+                #mask_ids = borders_mask_bruteforce(self.RAvoro, self.DECvoro, self.Ncells_in_void[:,ith], self.ID_voro_dict,nside)
+                mask_ids, mask_voro, self.healpix_mask[ith] = borders_mask(mask_pix,self.RAvoro,self.DECvoro,self.ID_voro_dict,self.Ncells_in_void[:,ith],npadding_ang,nthreads=nthreads)
+                self.ids_selected[ith] = dist_limit_mask(mask_ids,self.Xcm[:,ith,:],self.comov_range[ith,0],self.comov_range[ith,1],
+                                            self.VoroXYZ,self.Ncells_in_void[:,ith],self.ID_voro_dict) 
+                                
+                self.RA = dict()
+                self.DEC = dict()
+                self.comov_dist = dict()
+                self.redshift = dict()
+                self.z_from_dist = RedshiftFromComovingDistanceOverh(self.OmegaM,self.w0,self.wa)
+                self.z_range = self.z_from_dist.get_redshift(self.comov_range.reshape(-1)).reshape(self.comov_range.shape)
+
+            verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
 
         self.id_out = dict() 
         for ith in range(len(threshold)):
@@ -245,16 +272,9 @@ class voronoi_threshold_finder:
         self.w0=w0
         self.wa=wa
         self.max_num_part = max_num_part
-        self.RA = dict()
-        self.DEC = dict()
-        self.comov_dist = dict()
-        self.redshift = dict()
-        self.z_from_dist = RedshiftFromComovingDistanceOverh(self.OmegaM,self.w0,self.wa)
-        self.z_range = self.z_from_dist.get_redshift(self.comov_range.reshape(-1)).reshape(self.comov_range.shape)
 
     def compute_overlaps(self,frac_ovlp,thresholds=None,ids_threshold=None,verbose=None):
         if not (verbose is None):
-            self.verbose = verbose
             self.verbose = verbose
         if (ids_threshold is None):
             if thresholds is None:
@@ -271,7 +291,7 @@ class voronoi_threshold_finder:
             for ith in ids_threshold:
                 ids_ovlp, Vol_ovlp, Vol_ovlp_frac, num_ovlps = overlapping_fraction(
                     self.Xcm[:,ith,:], self.Vol_interp[:,ith], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
-                    id_selected=self.ids_selected[ith],nthreads=self.nthreads,verbose=self.verbose)
+                    Lbox=self.__Lbox,lightcone=self.__lightcone,id_selected=self.ids_selected[ith],nthreads=self.nthreads,verbose=self.verbose)
                 sor_by_vol = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1].astype(dtype=np.int_, order='C')
                 self.id_out[ith][frac_ovlp] = select_overlaps(frac_ovlp,self.ids_selected[ith],sor_by_vol, ids_ovlp, Vol_ovlp_frac, num_ovlps)
                 #print('ith',ith,'ids_ovlp:',ids_ovlp.dtype, 'Vol_ovlp:',Vol_ovlp.dtype, 'Vol_ovlp_frac:',Vol_ovlp_frac.dtype, 'num_ovlps:',
@@ -295,7 +315,7 @@ class voronoi_threshold_finder:
     
             id_out_dict, len_ids_out = compute_overlaps_all_parallel(
                 ids_threshold,frac_ovlp_arr, self.Xcm, self.Vol_interp, self.Ncells_in_void, self.VoroXYZ, self.VoroVol, 
-                self.ID_voro_dict, ids_selected_numba, nthreads=self.nthreads, verbose=verbose)
+                self.ID_voro_dict, self.__Lbox, self.__lightcone, ids_selected_numba, nthreads=self.nthreads, verbose=verbose)
             
             for ii in range(Ncombo):
                 ith = int(ii / Nfrac)
@@ -342,7 +362,7 @@ class voronoi_threshold_finder:
         for ith in range(Nthresholds):
             ids_ovlp[ith], Vol_ovlp, Vol_ovlp_frac[ith],num_ovlps[ith]  = overlapping_fraction(
                 self.Xcm[:,ith,:], self.Vol_interp[:,ith], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
-                id_selected=self.ids_selected[ith],nthreads=self.nthreads,verbose=self.verbose)
+                Lbox=self.__Lbox,lightcone=self.__lightcone,id_selected=self.ids_selected[ith],nthreads=self.nthreads,verbose=self.verbose)
             
             sor_by_vol[ith] = (np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1]).astype(dtype=np.int_, order='C')
 
@@ -385,7 +405,7 @@ class voronoi_threshold_finder:
 
                 ids_ovlp, Vol_ovlp, Vol_ovlp_frac, num_ovlps = overlapping_fraction(
                     self.Xcm[:,ith,:], self.Vol_interp[:,ith], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
-                    id_selected=self.ids_selected[ith],nthreads=self.nthreads,verbose=self.verbose)
+                    Lbox=self.__Lbox,lightcone=self.__lightcone,id_selected=self.ids_selected[ith],nthreads=self.nthreads,verbose=self.verbose)
                 sor_by_vol = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1].astype(dtype=np.int_,order='C')
 
                 self.id_out[ith][frac_ovlp] = select_overlaps(frac_ovlp,self.ids_selected[ith],sor_by_vol, ids_ovlp, Vol_ovlp_frac, num_ovlps)
@@ -426,6 +446,8 @@ class voronoi_threshold_finder:
         
         elif key == 'RA':
             # Right ascension of the volume weighted baricenter
+            if not self.__lightcone:
+                raise ValueError('\''+key+'\' not available when lightcone=False')
             if not (ith in self.RA.keys()):
                 self.comov_dist[ith], self.RA[ith], self.DEC[ith] = from_XYZ_to_rRAdec(self.Xcm[self.ids_selected[ith],ith,0],
                                                                                        self.Xcm[self.ids_selected[ith],ith,1],
@@ -437,6 +459,8 @@ class voronoi_threshold_finder:
         
         elif key == 'DEC':
             # Declination of the volume weighted baricenter
+            if not self.__lightcone:
+                raise ValueError('\''+key+'\' not available when lightcone=False')
             if not (ith in self.DEC.keys()):
                 self.comov_dist[ith], self.RA[ith], self.DEC[ith] = from_XYZ_to_rRAdec(self.Xcm[self.ids_selected[ith],ith,0],
                                                                                        self.Xcm[self.ids_selected[ith],ith,1],
@@ -448,6 +472,8 @@ class voronoi_threshold_finder:
         
         elif key == 'comov_dist':
             # Comoving distance of the volume weighted baricenter
+            if not self.__lightcone:
+                raise ValueError('\''+key+'\' not available when lightcone=False')
             if not (ith in self.comov_dist.keys()):
                 self.comov_dist[ith], self.RA[ith], self.DEC[ith] = from_XYZ_to_rRAdec(self.Xcm[self.ids_selected[ith],ith,0],
                                                                                        self.Xcm[self.ids_selected[ith],ith,1],
@@ -459,6 +485,8 @@ class voronoi_threshold_finder:
         
         elif key == 'redshift':
             # Redshift of the volume weighted baricenter
+            if not self.__lightcone:
+                raise ValueError('\''+key+'\' not available when lightcone=False')
             if not (ith in self.redshift.keys()):
                 if not (ith in self.comov_dist.keys()):
                     self.comov_dist[ith], self.RA[ith], self.DEC[ith] = from_XYZ_to_rRAdec(self.Xcm[self.ids_selected[ith],ith,0],
@@ -488,14 +516,20 @@ class voronoi_threshold_finder:
 
         elif key == 'angular_mask':
             # heapix mask for Voronoi cells
+            if not self.__lightcone:
+                raise ValueError('\''+key+'\' not available when lightcone=False')
             return self.healpix_mask[ith].astype(np.float32)
 
         elif key == 'comov_range':
             # comoving range for Voronoi cells
+            if not self.__lightcone:
+                raise ValueError('\''+key+'\' not available when lightcone=False')
             return self.comov_range[ith,:]
 
         elif key == 'z_range':
             # redshift range for Voronoi cells
+            if not self.__lightcone:
+                raise ValueError('\''+key+'\' not available when lightcone=False')
             return self.z_range[ith,:]
 
         else:
