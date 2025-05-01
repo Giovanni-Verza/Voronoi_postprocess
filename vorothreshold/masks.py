@@ -62,6 +62,7 @@ def ids_pix_noborder_RADEC(mask_pix_bool,RAvoro,DECvoro,padding_npix):
 
 @jit(nopython=True,parallel=True)
 def borders_mask_inner(mask_voro,ID_voro_dict,Ncells):
+    # Remove non-voids
     id_selected = np.arange(Ncells.shape[0])[Ncells >= 1]
     mask_vds = np.ones(id_selected.shape[0],dtype=np.bool_)
 
