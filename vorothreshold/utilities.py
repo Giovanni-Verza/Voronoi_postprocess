@@ -307,6 +307,8 @@ class ComovingDistanceOverh:
     def get_dist(self,z):
         if self.check_all:
             self.check_range(z)
+        #if np.isscalar(z):
+        #    return get_integral_scalar_array(0., np.array([z]), self.z_bins, self.coeffs)[0]
         return get_integral_scalar_array(0., z, self.z_bins, self.coeffs) #self.inverse_cHoverH0.get_integral(0.,z)
     
 

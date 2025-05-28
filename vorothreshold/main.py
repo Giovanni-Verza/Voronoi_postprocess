@@ -156,6 +156,7 @@ class voronoi_threshold_finder:
                     OmegaM_VIDE = load_pickle_safe(vide_path+'/sample_info.dat')['omegaM']
                     if OmegaM != OmegaM_VIDE:
                         raise Warning('OmegaM passed differs from the value used for Vide. Passed: '+str(OmegaM)+', Vide:'+str(OmegaM_VIDE))
+    
                 
                 if w0 != -1.:
                     raise Warning('w0 passed differs from the value used for Vide. Passed: '+str(w0)+', Vide: -1.0')
@@ -266,7 +267,7 @@ class voronoi_threshold_finder:
                 self.DEC = dict()
                 self.comov_dist = dict()
                 self.redshift = dict()
-                self.z_from_dist = RedshiftFromComovingDistanceOverh(self.OmegaM,self.w0,self.wa)
+                self.z_from_dist = RedshiftFromComovingDistanceOverh(OmegaM,w0,wa)
                 self.z_range = self.z_from_dist.get_redshift(self.comov_range.reshape(-1)).reshape(self.comov_range.shape)
 
             verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
