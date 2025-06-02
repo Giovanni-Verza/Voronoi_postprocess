@@ -22,7 +22,7 @@ The excursion_set_functions make use of
 
 ## Getting started
 
-The directory `examples` contains two Jupyter notebooks for getting started, for the box and lightcone cases. They are both based on the output of the example of `VIDE`, available at [VIDE]. 
+The directory `examples` contains two Jupyter notebooks for getting started, for both the simulation box and lightcone cases. They are both based on the output of the example of `VIDE`, available at [VIDE]. 
 
 The module `voronoi_threshold` contains the min function. The module `main` contatins the `voronoi_threshold_finder` class, with authomatize the computation of the final void catalog.
 
