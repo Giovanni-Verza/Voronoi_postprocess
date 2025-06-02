@@ -157,11 +157,17 @@ def overlapping_fraction_core_pbc(
     ijk_vox_void_center = xyz_vox_unit.astype(np.int_)
     
     i_in = int(np.floor(xyz_vox_unit[0] - half_n_vox_side))
+    i_in = max(i_in,-ngrid+1)
     i_out = int(np.floor(xyz_vox_unit[0] + half_n_vox_side + 1))
+    i_out = min(i_out,i_in+ngrid)
     j_in = int(np.floor(xyz_vox_unit[1] - half_n_vox_side))
+    j_in = max(j_in,-ngrid+1)
     j_out = int(np.floor(xyz_vox_unit[1] + half_n_vox_side + 1))
+    j_out = min(j_out,j_in+ngrid)
     k_in = int(np.floor(xyz_vox_unit[2] - half_n_vox_side))
+    k_in = max(k_in,-ngrid+1)
     k_out = int(np.floor(xyz_vox_unit[2] + half_n_vox_side + 1))
+    k_out = min(k_out,k_in+ngrid)
 
     ids_to_expore = np.zeros(max_num_tracers,dtype=np.int_)
     #ids_ovlp = np.zeros(max_num_tracers,dtype=np.int_)
@@ -667,7 +673,7 @@ def overlapping_fraction(
 
     if ngrid < 0:
         #ngrid = max(int(round(5 * Lbox / np.sqrt(np.max(R2_max)))),3)
-        ngrid = max(int(round(Lbox / np.max(R_max) )),3)
+        ngrid = max(int(round(Lbox / np.max(R_max) )),4)
 
         verboseprint("\n    ngrid not passed. Set to optimal value:",ngrid,flush=True)
 
