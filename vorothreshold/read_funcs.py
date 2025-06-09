@@ -137,10 +137,10 @@ def read_adjfile(adjfile):
 def read_voronoi_vide(vide_out,sample_name=None):
 
     if sample_name is None:
-        infoFile = glob.glob(vide_out+'/zobov_slice_*.par')[0]
+        infoFile = glob.glob(os.path.expanduser(vide_out)+'/zobov_slice_*.par')[0]
         sample_name = infoFile.split('zobov_slice_')[-1].replace('.par','')
     else:
-        infoFile = vide_out+"/zobov_slice_"+sample_name+".par"
+        infoFile = os.path.expanduser(vide_out)+"/zobov_slice_"+sample_name+".par"
 
     # load box and part info
     
@@ -160,13 +160,13 @@ def read_voronoi_vide(vide_out,sample_name=None):
 
 
     # load Voronoi volume (unnormalized)
-    volFile = vide_out+"/vol_"+sample_name+".dat"
+    volFile = os.path.expanduser(vide_out)+"/vol_"+sample_name+".dat"
     with open(volFile, mode="rb") as File:
         chk = np.fromfile(File, dtype=np.int32,count=1)
         vols = np.fromfile(File, dtype=np.float32,count=numPartTot)
 
     # load Voronoi coords
-    partFile = vide_out+"/zobov_slice_"+sample_name
+    partFile = os.path.expanduser(vide_out)+"/zobov_slice_"+sample_name
     with open(partFile, mode="rb") as File:
         chk = np.fromfile(File, dtype=np.int32,count=1)
         # Np from zobov_slice_ e' diverso da vu.loadPart(vide_out)
@@ -242,7 +242,7 @@ class OLD_voro_in_vide_voids:
             zoneFile = glob.glob(vide_out+'/voidZone_*')[0]
             sample_name = zoneFile.replace(vide_out+'/voidZone_','').replace('.dat','')
         else:
-            zoneFile = vide_out+"/voidZone_"+sample_name+".dat"
+            zoneFile = os.path.expanduser(vide_out)+"/voidZone_"+sample_name+".dat"
         void2Zones = []
         with open(zoneFile, mode="rb") as File:
             numZonesTot = np.fromfile(File, dtype=np.int32,count=1)[0]
@@ -258,7 +258,7 @@ class OLD_voro_in_vide_voids:
 
 
         #print("Loading particle-zone membership info...")
-        zonePartFile = vide_out+"/voidPart_"+sample_name+".dat"
+        zonePartFile = os.path.expanduser(vide_out)+"/voidPart_"+sample_name+".dat"
         zones2Parts = []
         with open(zonePartFile) as File:
             chk = np.fromfile(File, dtype=np.int32,count=1)
@@ -278,7 +278,7 @@ class OLD_voro_in_vide_voids:
         else:
             prefix = ""
 
-        self.voidID = np.loadtxt(vide_out+"/"+prefix+"voidDesc_"+dataPortion+"_"+sample_name+".out", comments="#", skiprows=2)[:,1].astype(np.int_)
+        self.voidID = np.loadtxt(os.path.expanduser(vide_out)+"/"+prefix+"voidDesc_"+dataPortion+"_"+sample_name+".out", comments="#", skiprows=2)[:,1].astype(np.int_)
 
     def get_voro_from_uniqueID(self,voidID):
 
@@ -336,11 +336,11 @@ def load_void_zone_part(zonePartFile):
 def load_partzone(vide_out,sample_name=None,dataPortion="all",untrimmed=True):
     #print("Loading particle-zone membership info...")
     if sample_name is None:
-        zoneFile = glob.glob(vide_out+'/voidZone_*')[0]
-        sample_name = zoneFile.replace(vide_out+'/voidZone_','').replace('.dat','')
+        zoneFile = glob.glob(os.path.expanduser(vide_out)+'/voidZone_*')[0]
+        sample_name = zoneFile.replace(os.path.expanduser(vide_out)+'/voidZone_','').replace('.dat','')
     else:
-        zoneFile = vide_out+"/voidZone_"+sample_name+".dat"
-    zonePartFile = vide_out+"/voidPart_"+sample_name+".dat"
+        zoneFile = os.path.expanduser(vide_out)+"/voidZone_"+sample_name+".dat"
+    zonePartFile = os.path.expanduser(vide_out)+"/voidPart_"+sample_name+".dat"
     zones2Parts = []
     with open(zonePartFile, mode="rb") as File:
         num_bytes = len(File.read())
@@ -374,14 +374,14 @@ def load_partzone_inner(raw_data):
 class voro_in_vide_voids:
     def __init__(self,vide_out,sample_name=None,dataPortion="all",untrimmed=True):
         if sample_name is None:
-            zoneFile = glob.glob(vide_out+'/voidZone_*')[0]
-            sample_name = zoneFile.replace(vide_out+'/voidZone_','').replace('.dat','')
+            zoneFile = glob.glob(os.path.expanduser(vide_out)+'/voidZone_*')[0]
+            sample_name = zoneFile.replace(os.path.expanduser(vide_out)+'/voidZone_','').replace('.dat','')
         else:
-            zoneFile = vide_out+"/voidZone_"+sample_name+".dat"
+            zoneFile = os.path.expanduser(vide_out)+"/voidZone_"+sample_name+".dat"
 
         self.numZones, self.zoneIDs = load_void_zones_inner(load_void_zone_part(zoneFile))
 
-        zonePartFile = vide_out+"/voidPart_"+sample_name+".dat"
+        zonePartFile = os.path.expanduser(vide_out)+"/voidPart_"+sample_name+".dat"
         self.numPart, self.partID = load_partzone_inner(load_void_zone_part(zonePartFile))
 
 
@@ -390,7 +390,7 @@ class voro_in_vide_voids:
         else:
             prefix = ""
 
-        self.voidID = np.loadtxt(vide_out+"/"+prefix+"voidDesc_"+dataPortion+"_"+sample_name+".out", comments="#", skiprows=2)[:,1].astype(np.int_)
+        self.voidID = np.loadtxt(os.path.expanduser(vide_out)+"/"+prefix+"voidDesc_"+dataPortion+"_"+sample_name+".out", comments="#", skiprows=2)[:,1].astype(np.int_)
 
     def get_voro_from_uniqueID(self,voidID):
         #partOut = np.zeros(0,np.int_)
@@ -412,13 +412,13 @@ class voro_in_vide_voids:
     
 
 
-def vide_voids_cat(vide_out_dir,sample_name,dataPortion='all',untrimmed=True,as_dict=True,values_out=None):
+def vide_voids_cat(vide_out_dir,sample_name=None,dataPortion='all',untrimmed=True,as_dict=True,values_out=None):
     if untrimmed:
         prefix = "untrimmed_"
     else:
         prefix = ""
     if sample_name is None:
-        path_test = vide_out_dir+"/"+prefix+"centers_"+dataPortion+"_"+sample_name+".out"
+        path_test = os.path.expanduser(vide_out_dir)+"/"+prefix+"centers_"+dataPortion+"_"#+sample_name+".out"
         center_file = glob.glob(path_test+'*')[0]
         sample_name = center_file.replace(path_test,'').replace('.out','')
         
@@ -489,7 +489,7 @@ def vide_voids_cat(vide_out_dir,sample_name,dataPortion='all',untrimmed=True,as_
 
     dict_out = dict()
     if do_center:
-        catData = np.loadtxt(vide_out_dir+"/"+prefix+"centers_"+dataPortion+"_"+sample_name+".out", comments="#")
+        catData = np.loadtxt(os.path.expanduser(vide_out_dir)+"/"+prefix+"centers_"+dataPortion+"_"+sample_name+".out", comments="#")
         # center x,y,z (Mpc/h), volume (normalized), radius (Mpc/h), redshift, volume (Mpc/h^3), void ID, density contrast, num part, parent ID, tree level, number of children, central density
 
         dict_out['barycenter'] = catData[:,:3]
@@ -506,7 +506,7 @@ def vide_voids_cat(vide_out_dir,sample_name,dataPortion='all',untrimmed=True,as_
         dict_out['central_dens'] = catData[:,13]
 
     if do_sky:
-        catData = np.loadtxt(vide_out_dir+"/"+prefix+"sky_positions_"+dataPortion+"_"+sample_name+".out")
+        catData = np.loadtxt(os.path.expanduser(vide_out_dir)+"/"+prefix+"sky_positions_"+dataPortion+"_"+sample_name+".out")
         dict_out['RA'] = catData[:,0]
         dict_out['DEC'] = catData[:,1]
 
@@ -516,7 +516,7 @@ def vide_voids_cat(vide_out_dir,sample_name,dataPortion='all',untrimmed=True,as_
         #'file_void','core_ID','core_dens','zone_vol','zone_part', 'void_prob'
         #ID FileVoid# CoreParticle CoreDens ZoneVol Zone#Part Void#Zones VoidVol Void#Part VoidDensContrast VoidProb
 
-        catData = np.loadtxt(vide_out_dir+"/"+prefix+"voidDesc_"+dataPortion+"_"+sample_name+".out", comments="#", skiprows=2)
+        catData = np.loadtxt(os.path.expanduser(vide_out_dir)+"/"+prefix+"voidDesc_"+dataPortion+"_"+sample_name+".out", comments="#", skiprows=2)
 
         dict_out['file_void'] = catData[:,1].astype(np.int_)
         dict_out['core_ID'] = catData[:,2].astype(np.int_)
@@ -530,7 +530,7 @@ def vide_voids_cat(vide_out_dir,sample_name,dataPortion='all',untrimmed=True,as_
         
 
     if do_core:
-        voro_id, VolCell, VoroXYZ, RAvoro, DECvoro, redshift_voro = read_voronoi_vide(vide_out_dir,sample_name)
+        voro_id, VolCell, VoroXYZ, RAvoro, DECvoro, redshift_voro = read_voronoi_vide(os.path.expanduser(vide_out_dir),sample_name)
         del voro_id, VolCell
 
         dict_out['core_pos'] = VoroXYZ[dict_out['core_ID'],:]
@@ -542,7 +542,7 @@ def vide_voids_cat(vide_out_dir,sample_name,dataPortion='all',untrimmed=True,as_
 
 
     if do_shape:
-        fileName = vide_out_dir+"/"+prefix+"shapes_"+dataPortion+"_"+sample_name+".out"
+        fileName = os.path.expanduser(vide_out_dir)+"/"+prefix+"shapes_"+dataPortion+"_"+sample_name+".out"
 
         ellipticity = np.loadtxt(fileName, comments="#")[:,1:14]
         dict_out['ellip'] = ellipticity[:,0]
@@ -552,7 +552,7 @@ def vide_voids_cat(vide_out_dir,sample_name,dataPortion='all',untrimmed=True,as_
         dict_out['eigenvec3'] = ellipticity[:,10:13]
         del ellipticity
     if do_info:
-        infoFile = vide_out_dir+"/zobov_slice_"+sample_name+".par"
+        infoFile = os.path.expanduser(vide_out_dir)+"/zobov_slice_"+sample_name+".par"
 
         File = Dataset(infoFile, 'r')
         dict_out['num_part_tot'] = getattr(File, 'mask_index')
