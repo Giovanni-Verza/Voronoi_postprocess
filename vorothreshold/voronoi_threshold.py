@@ -239,9 +239,15 @@ def get_void_properties(Xcm_interp, Vol_interp, Ncells_in_void, eigenvalues, eig
     for ith in range(Nthresholds):
         if Ncells_in_void[ith] <= 1.:     
             continue  
-        frac = Ncells_in_void[ith] % 1
-        Ncells_int  = int(Ncells_in_void[ith])
+        #frac = Ncells_in_void[ith] % 1
+        #Ncells_int  = int(Ncells_in_void[ith])
         #Vol_interp[ith] = VolPrevious + frac * VoroVol[IDvoro_in_void[Ncells-1]] 
+
+        frac = Ncells_in_void[ith] % 1
+        # if frac = 0, which reasonably only happen when Ncells_in_void[ith] = max_num_part or 1, Ncells_int -= 1 and frac = 1. This is to avoid out of bounds index
+        frac += int(frac == 0.)
+        Ncells_int = int(Ncells_in_void[ith]) - int(frac)
+
         Vol_interp[ith] = np.sum(VoroVol[IDvoro_in_void[:Ncells_int]]) + frac * VoroVol[IDvoro_in_void[Ncells_int]] 
 
         Coord_norm = np.sum(1. / (VoroVol[IDvoro_in_void[:Ncells_int]] * tracer_dens[IDvoro_in_void[:Ncells_int]])) +  \

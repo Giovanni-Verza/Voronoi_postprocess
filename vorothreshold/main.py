@@ -126,10 +126,7 @@ class voronoi_threshold_finder:
         if lightcone & (tracer_dens is None):
             raise ValueError('tracer_dens not passed. When lightcone=True the number density of each tracer is required.')
 
-        if np.isscalar(threshold):
-            self.threshold = np.array([threshold])
-        else:
-            self.threshold = np.array(threshold)
+        self.threshold = np.array(threshold).reshape(-1)
 
         if not (vide_path is None):
             # load VTFE scheme from adjfile
@@ -186,7 +183,7 @@ class voronoi_threshold_finder:
 
             verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
 
-            if max_num_part < 0:
+            if max_num_part <= 0:
 
                 max_num_part = int(5 * np.max(np.loadtxt(vide_path+'/untrimmed_centers_all_'+vide_out_name+'.out', comments="#")[:,9]))
                 verboseprint('    max_num_part < 0: authomatically set to 5 * max(num_part):',max_num_part,flush=True)
