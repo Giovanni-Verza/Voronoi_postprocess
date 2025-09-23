@@ -270,9 +270,9 @@ class voronoi_threshold_finder:
             verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
 
         
-        self.OmegaM=OmegaM
-        self.w0=w0
-        self.wa=wa
+        self.OmegaM = OmegaM
+        self.w0 = w0
+        self.wa = wa
         self.max_num_part = max_num_part
 
         self.ids_ovlp = dict()
