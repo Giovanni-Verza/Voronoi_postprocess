@@ -46,7 +46,7 @@ def overlapping_fraction_core(
     half_n_vox_side = int((dist_max-1) / voxel_side) + 1
     
     ijk_in_sphere = np.empty((max_num_vox_for_sphere,3),dtype=np.int_)
-    vox_dist_from_xyz = np.empty(3,dtype=np.float_)
+    vox_dist_from_xyz = np.empty(3,dtype=np.float64)
     xyz_vox_unit = XYZ_ref / voxel_side
     ijk_vox_void_center = xyz_vox_unit.astype(np.int_)
     
@@ -151,7 +151,7 @@ def overlapping_fraction_core_pbc(
     half_n_vox_side = int((dist_max-1) / voxel_side) + 1
     
     ijk_in_sphere = np.empty((max_num_vox_for_sphere,3),dtype=np.int_)
-    vox_dist_from_xyz = np.empty(3,dtype=np.float_)
+    vox_dist_from_xyz = np.empty(3,dtype=np.float64)
     pbc_ijk_vox = np.empty(3,dtype=np.int8)
     xyz_vox_unit = XYZ_ref / voxel_side
     ijk_vox_void_center = xyz_vox_unit.astype(np.int_)
@@ -330,7 +330,7 @@ def overlapping_fraction_core_TEST(
     half_n_vox_side = int((dist_max-1) / voxel_side) + 1
     
     ijk_in_sphere = np.empty((max_num_vox_for_sphere,3),dtype=np.int_)
-    vox_dist_from_xyz = np.empty(3,dtype=np.float_)
+    vox_dist_from_xyz = np.empty(3,dtype=np.float64)
     xyz_vox_unit = XYZ_ref / voxel_side
     ijk_vox_void_center = xyz_vox_unit.astype(np.int_)
     
@@ -449,6 +449,140 @@ def overlapping_fraction_loop_TEST(
             MASK1[get_thread_id()], id_loop, id_ord, ids_ovlp, Vol_ovlp, Vol_ovlp_frac, 
             IDS_voids, XYZ_voids, VolVoids, Ncells, max_dist_vds, Rmax, Ids_voro_dict, voro_vol, ind_vox, ngrid, voxel_side, max_num_tracers)
     return ids_ovlp, Vol_ovlp, Vol_ovlp_frac, num_ovlps
+
+
+
+
+@jit(nopython=True)
+def nearest_cell_core(
+    XYZ_ref, XYZ_voro_ord, ind_vox, ngrid, voxel_side, max_iterations):
+
+    max_num_vox_for_sphere = int(4 * 3.1416 / 3 * (max_iterations + 0.5 * np.sqrt(3))**3) + 1
+    #max_num_vox_for_sphere = max(max_num_vox_for_sphere, 27)
+
+    #half_n_vox_side = int((dist_max-1) / voxel_side) + 1
+    
+    ijk_in_sphere = np.empty((max_num_vox_for_sphere,3),dtype=np.int_)
+    vox_dist_from_xyz = np.empty(3,dtype=np.float64)
+    xyz_vox_unit = XYZ_ref / voxel_side
+    ijk_vox_void_center = xyz_vox_unit.astype(np.int_)
+    
+    #i_in = max(int(xyz_vox_unit[0] - half_n_vox_side),0)
+    #i_out = min(int(xyz_vox_unit[0] + half_n_vox_side + 1),ngrid)
+    #j_in = max(int(xyz_vox_unit[1] - half_n_vox_side),0)
+    #j_out = min(int(xyz_vox_unit[1] + half_n_vox_side + 1),ngrid)
+    #k_in = max(int(xyz_vox_unit[2] - half_n_vox_side),0)
+    #k_out = min(int(xyz_vox_unit[2] + half_n_vox_side + 1),ngrid)
+    
+    i_in = max(int(xyz_vox_unit[0]) - 1,0)
+    i_out = min(int(xyz_vox_unit[0]) + 2,ngrid)
+    j_in = max(int(xyz_vox_unit[1]) - 1,0)
+    j_out = min(int(xyz_vox_unit[1]) + 2,ngrid)
+    k_in = max(int(xyz_vox_unit[2]) - 1,0)
+    k_out = min(int(xyz_vox_unit[2]) + 2,ngrid)
+
+    #ids_to_expore = np.zeros(max_num_tracers,dtype=np.int_)
+    ################################################################33
+
+
+    #dist_2 = np.empty(max_points_sphere,dtype=np.float64)
+    #ids_ordered = np.empty(max_points_sphere,dtype=np.int64)
+    r2_vox_unit = 1. #dist2_max / (voxel_side * voxel_side)
+    min_dist_2 = 0.
+    dist2_max = 0.
+    iteration = 0
+    while (min_dist_2 == dist2_max) | (iteration >= max_iterations):
+        progr = 0
+        dist2_max = r2_vox_unit * voxel_side * voxel_side
+        for i in range(i_in,i_out):
+            for j in range(j_in,j_out):
+                for k in range(k_in,k_out):
+                    ijk_in_sphere[progr,0] = i
+                    ijk_in_sphere[progr,1] = j
+                    ijk_in_sphere[progr,2] = k
+
+                    #// Compute the distance between the center and the closest vertex of voxel i,j,k:
+                    #// if i < xyz_vox_unit[0] (voxels at left) compare the distance wrt i+1, 
+                    #// i.e. right vertex of voxel instead of the left one
+                    vox_dist_from_xyz[0] = i + int(i < xyz_vox_unit[0]) - xyz_vox_unit[0]
+                    vox_dist_from_xyz[1] = j + int(j < xyz_vox_unit[1]) - xyz_vox_unit[1]
+                    vox_dist_from_xyz[2] = k + int(k < xyz_vox_unit[2]) - xyz_vox_unit[2]
+                    #// Compute the square of the distance. The boolean condition is to an exact computation 
+                    #// of the minimum distance between the center and the voxel:
+                    #// if , e.g. i == ijk_vox_void_center[0] the minimum distance occurs at the side, not at vertex,
+                    #// i.e. the minimu radius is has the same x coord of the center, therefore the x projection
+                    #// of the radius is 0, i.e. (i != ijk_vox_void_center[0])=0.
+                    #// This algorithm automatically select the voxel to which the center belong, 
+                    #// independently on the radius and voxel size
+                    vox_dist_from_xyz[0] *= vox_dist_from_xyz[0] * int(i != ijk_vox_void_center[0])
+                    vox_dist_from_xyz[1] *= vox_dist_from_xyz[1] * int(j != ijk_vox_void_center[1])
+                    vox_dist_from_xyz[2] *= vox_dist_from_xyz[2] * int(k != ijk_vox_void_center[2])
+
+                    progr += (vox_dist_from_xyz[0] + vox_dist_from_xyz[1] + vox_dist_from_xyz[2]) < r2_vox_unit
+                    
+        #progr_sphere = 0
+        #// select voxels intersecting with the sphere centered in the void center
+        min_dist_2 = dist2_max
+        ids_ordered = ind_vox[0]
+        for id_vox in range(progr):
+            
+            id_vox_tmp = ijk_in_sphere[id_vox,0] * ngrid * ngrid + ijk_in_sphere[id_vox,1] * ngrid + ijk_in_sphere[id_vox,2]
+
+            ###################################################################
+            ############## begin method 1 #####################################
+            ###################################################################
+
+            #ids_ordered[id_vox] = ind_vox[id_vox_tmp] + np.argmax(np.sum(np.square(XYZ_voro_ord[ind_vox[id_vox_tmp]:ind_vox[id_vox_tmp+1],:] - XYZ_voids),axis=1))
+            #dist_2[id_vox] = np.sum(np.square(XYZ_voro_ord[ids_ordered[id_vox],:] - XYZ_ref))
+
+
+            ###################################################################
+            ############## end method 1 #####################################
+            ###################################################################
+
+            ###################################################################
+            ############## begin method 2 #####################################
+            ###################################################################
+
+            for id_trs in range(ind_vox[id_vox_tmp],ind_vox[id_vox_tmp+1]):
+                dist_2 = np.sum(np.square(XYZ_voro_ord[id_trs,:] - XYZ_ref))
+                is_smaller = (min_dist_2 > dist_2) & (dist_2 <= dist2_max)
+                ids_ordered = ids_ordered * int(not is_smaller) + id_trs * int(is_smaller)
+                min_dist_2 = min_dist_2 * int(not is_smaller) + dist_2 * int(is_smaller)
+
+            ###################################################################
+            ############## end method 2 #####################################
+            ###################################################################
+
+                        
+        i_in = max(i_in - 1,0)
+        i_out = min(i_out + 1,ngrid)
+        j_in = max(j_in - 1,0)
+        j_out = min(j_out + 1,ngrid)
+        k_in = max(k_in - 1,0)
+        k_out = min(k_out + 1,ngrid)
+        iteration += 1
+
+    #ids = np.argpartition(dist_2[:progr_sphere],kth)[:kth]
+    #ids = np.argmax(dist_2[:progr_sphere])
+    
+    #return ids_ordered[ids[np.argsort(dist_2[ids])]]
+    
+    return ids_ordered #[ids]
+
+
+@jit(nopython=True,parallel=True)
+def nearest_cell_loop(
+    IDS_voids, XYZ_voids, XYZ_voro_ord, ids_reverse, ind_vox, ngrid, voxel_side, max_iterations):
+
+    Nvoids = IDS_voids.shape[0]
+    ids_closest = np.empty(Nvoids, dtype=np.int64)
+
+    for id_loop in prange(Nvoids):
+        ids_closest[id_loop] = ids_reverse[
+            nearest_cell_core(XYZ_voids[IDS_voids[id_loop],:], 
+                              XYZ_voro_ord, ind_vox, ngrid, voxel_side,max_iterations)]
+    return ids_closest
 
 
 @jit(nopython=True,parallel=True)
@@ -589,6 +723,47 @@ def order_ids_tracers_selected_in_voxels(
         n_trs_vox[id_grid] -= 1
         
     return id_trs_out, id_sorted, ind_vox
+
+
+@jit(nopython=True)
+def order_coord_tracers_in_voxels_ids_rev_copy(xyz_trs, ngrid, Lbox):
+
+    num_tracers = xyz_trs.shape[0]
+    n_trs_vox = np.zeros(ngrid*ngrid*ngrid,dtype=np.int64) # array containing the number of tracer for each voxel
+    xyz_trs_out = np.empty(xyz_trs.shape,dtype=xyz_trs.dtype)
+    ids_reverse = np.empty(xyz_trs.shape[0],dtype=np.int64)
+
+    voxel_side_inv = ngrid / Lbox
+    
+    ix = 0 
+    iy = 0
+    iz = 0
+    for i_tr in range(num_tracers):
+        ix = int(xyz_trs[i_tr,0] * voxel_side_inv) #- int(xyz_trs[i_tr][0]>=Lbox)
+        iy = int(xyz_trs[i_tr,1] * voxel_side_inv) #- int(xyz_trs[i_tr][1]>=Lbox)
+        iz = int(xyz_trs[i_tr,2] * voxel_side_inv) #- int(xyz_trs[i_tr][2]>=Lbox)
+        n_trs_vox[ix * ngrid * ngrid + iy * ngrid + iz] += 1
+    
+    ind_vox = np.empty(ngrid*ngrid*ngrid+1,dtype=np.int64)
+    ind_vox[0] = 0
+    for i in range(ngrid*ngrid*ngrid):
+        ind_vox[i+1] = ind_vox[i] + n_trs_vox[i]
+    
+    for i_tr in range(num_tracers-1,-1,-1):
+        ix = int(xyz_trs[i_tr,0] * voxel_side_inv) #- int(xyz_trs[i_tr][0]>=Lbox)
+        iy = int(xyz_trs[i_tr,1] * voxel_side_inv) #- int(xyz_trs[i_tr][1]>=Lbox)
+        iz = int(xyz_trs[i_tr,2] * voxel_side_inv) #- int(xyz_trs[i_tr][2]>=Lbox)
+        id_grid = ix * ngrid * ngrid + iy * ngrid + iz
+        #permutation_ind[i_tr] = ind_vox[id_grid]  + n_trs_vox[id_grid] - 1
+        id_new = ind_vox[id_grid]  + n_trs_vox[id_grid] - 1
+        xyz_trs_out[id_new,:] = xyz_trs[i_tr,:]
+        ids_reverse[id_new] = i_tr #attr[i_tr]
+
+        n_trs_vox[id_grid] -= 1
+        
+    return xyz_trs_out, ids_reverse, ind_vox
+
+
 
 
 def overlapping_fraction(
