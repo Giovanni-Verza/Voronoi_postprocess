@@ -11,7 +11,7 @@ from numba import jit, prange, set_num_threads, get_num_threads, get_thread_id
 
 from . read_funcs import read_adjfile, read_voronoi_vide, load_pickle_safe
 from . masks import borders_mask_bruteforce, dist_limit_mask, borders_mask
-from . overlaps import select_overlaps, overlapping_fraction
+from . overlaps import select_overlaps, overlapping_fraction, center_in_void, closest_voro, select_overlaps_center_in_void
 from . utilities import from_XYZ_to_rRAdec, from_rRAdec_to_XYZ, ComovingDistanceOverh, RedshiftFromComovingDistanceOverh, StrHminSec
 from . voronoi_threshold import is_in_arr, voronoi_threshold
 
@@ -31,7 +31,7 @@ def compute_overlaps_all_parallel_compiled(
     Ncombo = Nthresholds * Nfrac
 
 
-    len_ids_out = np.zeros(Ncombo,dtype=np.int_)
+    len_ids_out = np.zeros(Ncombo,dtype=np.int64)
     
     id_out_dict = Dict.empty(
         key_type=types.int64,
@@ -39,7 +39,7 @@ def compute_overlaps_all_parallel_compiled(
 
     for ith in range(Nthresholds):
         for ifrac in range(Nfrac):
-            id_out_dict[ith * Nfrac + ifrac] = np.empty(sor_by_vol[ith].shape[0],dtype=np.int_)
+            id_out_dict[ith * Nfrac + ifrac] = np.empty(sor_by_vol[ith].shape[0],dtype=np.int64)
 
     for ii in prange(Ncombo):
         ith = int(ii / Nfrac)
@@ -82,7 +82,7 @@ def compute_overlaps_all_parallel(
         ids_ovlp[ith], Vol_ovlp, Vol_ovlp_frac[ith], num_ovlps[ith] = overlapping_fraction(
             Xcm[:,ids_threshold[ith],:], Vol_interp[:,ids_threshold[ith]], Ncells_in_void[:,ids_threshold[ith]], VoroXYZ, VoroVol, ID_voro_dict,
             Lbox=Lbox,lightcone=lightcone,id_selected=ids_selected[ids_threshold[ith]],nthreads=nthreads,verbose=verbose)
-        sor_by_vol[ith] = (np.argsort(Vol_interp[ids_selected[ith],ith])[::-1]).astype(dtype=np.int_, order='C')
+        sor_by_vol[ith] = (np.argsort(Vol_interp[ids_selected[ith],ith])[::-1]).astype(dtype=np.int64, order='C')
 
 
     id_out_dict, len_ids_out = compute_overlaps_all_parallel_compiled(
@@ -140,7 +140,7 @@ class voronoi_threshold_finder:
             vide_out_name = adjfile.split('adj_')[1].split('.dat')[0]
             #if ID_core is None:
             # Load ids of cells belonging to minima
-            ID_core = np.loadtxt(vide_path+'/untrimmed_voidDesc_all_'+vide_out_name+'.out', comments='#', skiprows=2)[:,2].astype(np.int_)
+            ID_core = np.loadtxt(vide_path+'/untrimmed_voidDesc_all_'+vide_out_name+'.out', comments='#', skiprows=2)[:,2].astype(np.int64)
             # Load Voronoi cells volume, ids and tracers position
             
 
@@ -280,6 +280,9 @@ class voronoi_threshold_finder:
         self.num_ovlps = dict()
         self.sor_by_vol = dict()
 
+        self.ids_closest_voro = dict()
+        self.ids_ovlp_center = dict()
+
         self.id_out = dict() 
         for ith in range(len(threshold)):
             self.id_out[ith] = dict() 
@@ -304,7 +307,7 @@ class voronoi_threshold_finder:
                     self.ids_ovlp[ith], Vol_ovlp, self.Vol_ovlp_frac[ith], self.num_ovlps[ith] = overlapping_fraction(
                         self.Xcm[:,ith,:], self.Vol_interp[:,ith], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
                         Lbox=self.__Lbox,lightcone=self.__lightcone,id_selected=self.ids_selected[ith],nthreads=self.nthreads,verbose=self.verbose)
-                    self.sor_by_vol[ith] = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1].astype(dtype=np.int_,order='C')
+                    self.sor_by_vol[ith] = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1].astype(dtype=np.int64,order='C')
 
                 self.id_out[ith][frac_ovlp] = select_overlaps(
                     frac_ovlp,self.ids_selected[ith],self.sor_by_vol[ith], self.ids_ovlp[ith], self.Vol_ovlp_frac[ith], self.num_ovlps[ith])
@@ -371,17 +374,17 @@ class voronoi_threshold_finder:
             key_type=types.int64,
             value_type=int_array)
         
-        len_ids_out = np.zeros(Ncombo,dtype=np.int_)
+        len_ids_out = np.zeros(Ncombo,dtype=np.int64)
         
         for ith in range(Nthresholds):
             ids_ovlp[ith], Vol_ovlp, Vol_ovlp_frac[ith],num_ovlps[ith]  = overlapping_fraction(
                 self.Xcm[:,ith,:], self.Vol_interp[:,ith], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
                 Lbox=self.__Lbox,lightcone=self.__lightcone,id_selected=self.ids_selected[ith],nthreads=self.nthreads,verbose=self.verbose)
             
-            sor_by_vol[ith] = (np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1]).astype(dtype=np.int_, order='C')
+            sor_by_vol[ith] = (np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1]).astype(dtype=np.int64, order='C')
 
             for ifrac in range(Nfrac):
-                id_out_dict[ith * Nfrac + ifrac] = np.empty(sor_by_vol[ith].shape[0],dtype=np.int_)
+                id_out_dict[ith * Nfrac + ifrac] = np.empty(sor_by_vol[ith].shape[0],dtype=np.int64)
         
         for ii in prange(Ncombo):
             ith = int(ii / Nfrac)
@@ -393,8 +396,6 @@ class voronoi_threshold_finder:
 
             len_ids_out[ii] = id_out_tmp.shape[0]
             id_out_dict[ii][:len_ids_out[ii]] = id_out_tmp
-
-
     
 
         for ii in range(Ncombo):
@@ -404,14 +405,44 @@ class voronoi_threshold_finder:
         
 
     # return values
-    def get_values(self,threshold,key,frac_ovlp=1,verbose=None):
+    def get_values(self,threshold,key,frac_ovlp=1,center_ovlp=False,verbose=None):
         if not (verbose is None):
             self.verbose = verbose
             self.verbose = verbose
         
         ith = (np.arange(len(self.threshold))[self.threshold == threshold])[0]
+        if center_ovlp:
+            if not ('center_ovlp' in self.id_out[ith].keys()):
+                verboseprint = print if self.verbose else lambda *a, **k: None
+                verboseprint('        select center_ovlp, ith=',ith,flush=True)
+                t0 = time.time()
+                if not (ith in self.ids_closest_voro.keys()):
+                    self.ids_closest_voro[ith] = closest_voro(
+                        self.Xcm[:,ith,:], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
+                        id_selected=self.ids_selected[ith],Lbox=self.__Lbox,lightcone=self.__lightcone,
+                        ngrid=-1,max_iterations=3,nthreads=self.nthreads,verbose=self.verbose)
+                    
+                if not (ith in self.ids_ovlp_center.keys()):
+                    self.ids_ovlp_center[ith] = center_in_void(
+                        self.Xcm[:,ith,:], self.Vol_interp[:,ith], self.Ncells_in_void[:,ith], self.VoroXYZ, self.ID_voro_dict, 
+                        self.ids_closest_voro[ith],
+                        id_selected=self.ids_selected[ith],Lbox=self.__Lbox,lightcone=self.__lightcone,
+                        ngrid=-1,nthreads=self.nthreads,verbose=self.verbose)
+                ids_ovlp_center_out = select_overlaps_center_in_void(self.ids_ovlp_center[ith],self.Vol_interp[:,ith])
 
-        if frac_ovlp < 1:
+                mask_ovlp = np.zeros(self.Xcm.shape[0],dtype=np.bool_)
+                mask_ovlp[self.ids_selected[ith]] = True
+                mask_ovlp[ids_ovlp_center_out[:,0]] = False
+
+                self.id_out[ith]['center_ovlp'] = np.arange(self.Xcm.shape[0])[mask_ovlp]
+                del mask_ovlp, ids_ovlp_center_out
+                
+                verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
+            
+            #id_ovlp_out = self.ids_selected[ith][self.id_out[ith]['center_ovlp']]
+            id_ovlp_out = self.id_out[ith]['center_ovlp']
+
+        elif frac_ovlp < 1:
             if not (frac_ovlp in self.id_out[ith].keys()):
                 verboseprint = print if self.verbose else lambda *a, **k: None
                 verboseprint('        select overlaps, ith=',ith,'frac_ovlp =',frac_ovlp,flush=True)
@@ -420,14 +451,14 @@ class voronoi_threshold_finder:
                     self.ids_ovlp[ith], Vol_ovlp, self.Vol_ovlp_frac[ith], self.num_ovlps[ith] = overlapping_fraction(
                         self.Xcm[:,ith,:], self.Vol_interp[:,ith], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
                         Lbox=self.__Lbox,lightcone=self.__lightcone,id_selected=self.ids_selected[ith],nthreads=self.nthreads,verbose=self.verbose)
-                    self.sor_by_vol[ith] = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1].astype(dtype=np.int_,order='C')
+                    self.sor_by_vol[ith] = np.argsort(self.Vol_interp[self.ids_selected[ith],ith])[::-1].astype(dtype=np.int64,order='C')
 
                 self.id_out[ith][frac_ovlp] = select_overlaps(frac_ovlp,self.ids_selected[ith],self.sor_by_vol[ith], self.ids_ovlp[ith], self.Vol_ovlp_frac[ith], self.num_ovlps[ith])
                 verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
                 #verboseprint('            keys:',self.id_out[ith].keys(),flush=True)
             
             id_ovlp_out = self.ids_selected[ith][self.id_out[ith][frac_ovlp]]
-        
+   
         elif frac_ovlp < 0:
             raise ValueError('frac_ovlp cannot be negative, value passed: '+str(frac_ovlp))
         else:
@@ -449,10 +480,21 @@ class voronoi_threshold_finder:
 
         elif key == 'id_wrt_all':
             # IDs of voids of the entire voronoi_threshold output that reach the threshold value and satifty the overlaps condition.
-            if frac_ovlp < 1:
+            if center_ovlp:
+                return self.id_out[ith]['center_ovlp']
+            elif frac_ovlp < 1:
                 return self.id_out[ith][frac_ovlp]
             else:
                 return np.arange(self.ids_selected[ith].shape[0])
+        
+        elif key == 'closest_voro':
+            # ID of voronoi cell containing the volume weighted baricenter
+            if not ('center_ovlp' in self.id_out[ith].keys()):
+                self.ids_closest_voro[ith] = closest_voro(
+                    self.Xcm[:,ith,:], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
+                    id_selected=self.ids_selected[ith],Lbox=self.__Lbox,lightcone=self.__lightcone,
+                    ngrid=-1,max_iterations=3,nthreads=self.nthreads,verbose=self.verbose)
+            return self.ids_closest_voro[ith]
         
         elif key == 'xyz':
             # Comoving coordinates of the volume weighted baricenter
@@ -547,8 +589,8 @@ class voronoi_threshold_finder:
             return self.z_range[ith,:]
 
         else:
-            all_keys = ['Ncells','ID_original_sample','id_selected','xyz','RA','DEC','redshift','volume','comov_dist',
-                        'radius','ell_eigenvalues','ell_eigenvectors','central_dens','id_wrt_all','angular_mask','comov_range','z_range']
+            all_keys = ['Ncells','ID_original_sample','id_selected','id_wrt_all','closest_voro','xyz','RA','DEC','redshift','volume','comov_dist',
+                        'radius','ell_eigenvalues','ell_eigenvectors','angular_mask','comov_range','z_range']
             
             all_k_str = ''
             for k_ok in all_keys:
