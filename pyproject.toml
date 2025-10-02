@@ -1,7 +1,7 @@
 [project]
 name = "vorothreshold"
-version = "0.0.1"
-description = "void profiles quantities"
+version = "0.1.0"
+description = "Threshold voids from Voronoi cells"
 authors = [
     { name = "Giovanni Verza", email = "gverza@flatironinstitute.org" }
 ]
