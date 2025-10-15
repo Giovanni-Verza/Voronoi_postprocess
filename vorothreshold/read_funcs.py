@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import os
 import h5py
+import sys
 #from typing import List
 
 
@@ -42,7 +43,7 @@ with h5py.File('{temp_filename}', 'w') as ff:
     
     # Run a separate Python process to load the object and re-save it in HDF5
     subprocess.run([
-        "python", "-c", loop_string
+        sys.executable, "-c", loop_string
     ], check=True)
 
     # Load the object back safely from the HDF5 file
