@@ -92,7 +92,8 @@ def compute_overlaps_all_parallel(
 
 
 class voronoi_threshold_finder:
-    def __init__(self,threshold,lightcone=True,Lbox=-1.,ID_core=None,neighbor_ptr=None,neighbor_ids=None,VoroXYZ=None,VoroVol=None,tracer_dens=None,ang_paddig_rad=None,
+    def __init__(self,threshold,lightcone=True,Lbox=-1.,ID_core=None,neighbor_ptr=None,neighbor_ids=None,VoroXYZ=None,VoroVol=None,tracer_dens=None,
+                 npadding_ang=None,ang_paddig_rad=None,
                  vide_path=None,comov_range=None,z_range=None,OmegaM=None,w0=-1.,wa=0.,nthreads=-1,verbose=True,max_num_part=-1):
         
         if verbose:
@@ -235,9 +236,10 @@ class voronoi_threshold_finder:
 
             self.healpix_mask = dict()
             for ith in range(len(threshold)):
-                if ang_paddig_rad is None:
-                    trs_mask = (dist_voro >= self.comov_range[ith,0]) & (dist_voro <= self.comov_range[ith,1])
-                    ang_paddig_rad = 2. * np.max(tracer_dens[trs_mask]**(-1./3.) / dist_voro[trs_mask])
+                if npadding_ang is None:
+                    if ang_paddig_rad is None:
+                        trs_mask = (dist_voro >= self.comov_range[ith,0]) & (dist_voro <= self.comov_range[ith,1])
+                        ang_paddig_rad = 2. * np.max(tracer_dens[trs_mask]**(-1./3.) / dist_voro[trs_mask])
                 if ith == 0:
                     try:
                         mask_pix = hp.read_map(vide_path + '/mask_map.fits')
@@ -252,8 +254,14 @@ class voronoi_threshold_finder:
                             if np.sum(mask_pix[hp.get_all_neighbours(nside,ii)]) >= 6:
                                 mask_pix[ii] = 1.
                         verboseprint('    angular mask not in path, builded with nside =',nside,flush=True)
-                    npadding_ang = int((ang_paddig_rad + hp.nside2resol(nside)) / hp.nside2resol(nside))
-                    verboseprint('    ang_paddig_rad =',ang_paddig_rad,'npadding_ang =',npadding_ang,flush=True)
+                    #npadding_ang = int((ang_paddig_rad + hp.nside2resol(nside)) / hp.nside2resol(nside))
+
+                    if npadding_ang is None:
+                        npadding_ang = int(round(ang_paddig_rad/ hp.nside2resol(nside)))
+                        verboseprint('    ang_paddig_rad =',ang_paddig_rad,'npadding_ang =',npadding_ang,flush=True)
+                    else:
+                        npadding_ang = int(npadding_ang)
+                        verboseprint('    npadding_ang =',npadding_ang,flush=True)
 
                 #mask_ids = borders_mask_bruteforce(self.RAvoro, self.DECvoro, self.Ncells_in_void[:,ith], self.ID_voro_dict,nside)
                 mask_ids, mask_voro, self.healpix_mask[ith] = borders_mask(mask_pix,self.RAvoro,self.DECvoro,self.ID_voro_dict,self.Ncells_in_void[:,ith],npadding_ang,nthreads=nthreads)
