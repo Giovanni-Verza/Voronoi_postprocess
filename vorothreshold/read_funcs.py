@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import os
 import h5py
-import sys
+import shutil
 #from typing import List
 
 
@@ -16,7 +16,7 @@ __all__ = ['read_voronoi_vide','read_voronoi_vide', 'voro_in_vide_voids', 'vide_
 
 
 def load_pickle_safe(pkl_file):
-    """Loads a joblib object in an isolated Python process and returns it safely."""
+    # Loads a joblib object in an isolated Python process and returns it safely.
     
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         temp_filename = temp_file.name
@@ -43,7 +43,7 @@ with h5py.File('{temp_filename}', 'w') as ff:
     
     # Run a separate Python process to load the object and re-save it in HDF5
     subprocess.run([
-        sys.executable, "-c", loop_string
+        shutil.which("python"), "-c", loop_string
     ], check=True)
 
     # Load the object back safely from the HDF5 file
