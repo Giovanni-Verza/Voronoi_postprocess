@@ -41,9 +41,9 @@ def ids_pix_noborder(mask_pix_bool,theta_voro,phi_voro,padding_npix):
     nside = hp.get_nside(mask_pix_bool)
     npix = hp.nside2npix(nside)
     mask_pix_border = np.zeros(npix,dtype=np.bool_)
-    for ipix in np.arange(npix)[mask_pix_bool.astype(np.bool_)]:
-        i_neigh = hp.get_all_neighbours(nside,ipix)
-        mask_pix_border[ipix] = (np.sum(mask_pix_bool[i_neigh]) == i_neigh.shape[0])
+    #for ipix in np.arange(npix)[mask_pix_bool.astype(np.bool_)]:
+    #    i_neigh = hp.get_all_neighbours(nside,ipix)
+    #    mask_pix_border[ipix] = (np.sum(mask_pix_bool[i_neigh]) == i_neigh.shape[0])
     for progr in range(padding_npix):
         mask_pix_border_old = np.copy(mask_pix_border)
         for ipix in np.arange(npix)[mask_pix_border_old]:
