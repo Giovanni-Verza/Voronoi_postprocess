@@ -447,8 +447,8 @@ class voronoi_threshold_finder:
                 
                 verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
             
-            #id_ovlp_out = self.ids_selected[ith][self.id_out[ith]['center_ovlp']]
-            id_ovlp_out = self.id_out[ith]['center_ovlp']
+            id_ovlp_out = self.ids_selected[ith][self.id_out[ith]['center_ovlp']]
+            #id_ovlp_out = self.id_out[ith]['center_ovlp']
 
         elif frac_ovlp < 1:
             if not (frac_ovlp in self.id_out[ith].keys()):

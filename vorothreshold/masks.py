@@ -40,7 +40,8 @@ def borders_mask_bruteforce(RAvoro,DECvoro,Ncells,ID_voro_dict,mask_pix):
 def ids_pix_noborder(mask_pix_bool,theta_voro,phi_voro,padding_npix):
     nside = hp.get_nside(mask_pix_bool)
     npix = hp.nside2npix(nside)
-    mask_pix_border = np.zeros(npix,dtype=np.bool_)
+    #mask_pix_border = np.zeros(npix,dtype=np.bool_)
+    mask_pix_border = np.copy(mask_pix_bool).astype(np.bool_)
     #for ipix in np.arange(npix)[mask_pix_bool.astype(np.bool_)]:
     #    i_neigh = hp.get_all_neighbours(nside,ipix)
     #    mask_pix_border[ipix] = (np.sum(mask_pix_bool[i_neigh]) == i_neigh.shape[0])

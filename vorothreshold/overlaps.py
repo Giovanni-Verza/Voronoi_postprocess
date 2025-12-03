@@ -1234,7 +1234,7 @@ def closest_voro(
 
     voxel_side_voro = Lbox / ngrid
 
-    xyz_trs_out, ids_reverse_voro, ind_vox_voro = order_coord_tracers_in_voxels_ids_rev_copy(xyz_voro - offset, ngrid, Lbox)
+    xyz_trs_out, ids_reverse_voro, ind_vox_voro = order_coord_tracers_in_voxels_ids_rev_copy(xyz_voro[id_selected,:] - offset, ngrid, Lbox)
     
     verboseprint('\n    order_ids_tracers_selected_in_voxels started',flush=True)
     
