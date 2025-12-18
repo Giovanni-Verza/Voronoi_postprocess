@@ -705,7 +705,7 @@ def nearest_cell_loop_pbc(
 
 
 @jit(nopython=True)
-def center_in_void_core(
+def center_in_void_core_old(
     id_loop, ids_voro_center, IDS_voids, XYZ_voids, VolVoids, Ncells, 
     max_dist_vds, R_max, Ids_voro_dict, ind_vox, ngrid, voxel_side):
     
@@ -807,6 +807,117 @@ def center_in_void_core(
 
         id_overlap = id_overlap * int(not overlap) + id_trs * int(overlap)
         max_vol = max_vol * int(not overlap) + VolVoids[id_trs] * int(overlap)
+
+    #return ids_ovlp, Vol_ovlp, Vol_ovlp_frac, progr_ovlp
+    return id_overlap
+
+
+@jit(nopython=True)
+def center_in_void_core(
+    id_loop, ids_selected, ids_voro_center, IDS_voids, XYZ_voids, VolVoids, Ncells, 
+    max_dist_vds, R_max, Ids_voro_dict, ind_vox, ngrid, voxel_side):
+    
+    id_void = IDS_voids[id_loop]
+    id_void_sel = ids_selected[id_void]
+    id_voro = ids_voro_center[id_void_sel]
+    XYZ_ref = XYZ_voids[id_void_sel,:]
+
+    dist_max = max_dist_vds[id_void_sel] + R_max
+    dist2_max = dist_max * dist_max
+    # initialize arrays:
+    max_num_vox_for_sphere = int(4 * 3.1416 / 3 * (int((dist_max-1) / voxel_side) + 1 + 0.5 * np.sqrt(3))**3) + 1
+    max_num_vox_for_sphere = max(max_num_vox_for_sphere, 27)
+
+
+    half_n_vox_side = int((dist_max-1) / voxel_side) + 1
+    
+
+    ijk_in_sphere = np.empty((max_num_vox_for_sphere,3),dtype=np.int64)
+    vox_dist_from_xyz = np.empty(3,dtype=np.float64)
+    xyz_vox_unit = XYZ_ref / voxel_side
+    ijk_vox_void_center = xyz_vox_unit.astype(np.int64)
+    
+    i_in = max(int(xyz_vox_unit[0] - half_n_vox_side),0)
+    i_out = min(int(xyz_vox_unit[0] + half_n_vox_side + 1),ngrid)
+    j_in = max(int(xyz_vox_unit[1] - half_n_vox_side),0)
+    j_out = min(int(xyz_vox_unit[1] + half_n_vox_side + 1),ngrid)
+    k_in = max(int(xyz_vox_unit[2] - half_n_vox_side),0)
+    k_out = min(int(xyz_vox_unit[2] + half_n_vox_side + 1),ngrid)
+
+    #ids_ovlp = np.zeros(max_num_tracers,dtype=np.int64)
+    #Vol_ovlp = np.zeros(max_num_tracers)
+    #Vol_ovlp_frac = np.zeros(max_num_tracers)
+
+    progr = 0
+    r2_vox_unit = dist2_max / (voxel_side * voxel_side)
+    max_num_tracers = 0
+    for i in range(i_in,i_out):
+        for j in range(j_in,j_out):
+            for k in range(k_in,k_out):
+                ijk_in_sphere[progr,0] = i
+                ijk_in_sphere[progr,1] = j
+                ijk_in_sphere[progr,2] = k
+
+                #// Compute the distance between the center and the closest vertex of voxel i,j,k:
+                #// if i < xyz_vox_unit[0] (voxels at left) compare the distance wrt i+1, 
+                #// i.e. right vertex of voxel instead of the left one
+                vox_dist_from_xyz[0] = i + int(i < xyz_vox_unit[0]) - xyz_vox_unit[0]
+                vox_dist_from_xyz[1] = j + int(j < xyz_vox_unit[1]) - xyz_vox_unit[1]
+                vox_dist_from_xyz[2] = k + int(k < xyz_vox_unit[2]) - xyz_vox_unit[2]
+                #// Compute the square of the distance. The boolean condition is to an exact computation 
+                #// of the minimum distance between the center and the voxel:
+                #// if , e.g. i == ijk_vox_void_center[0] the minimum distance occurs at the side, not at vertex,
+                #// i.e. the minimu radius is has the same x coord of the center, therefore the x projection
+                #// of the radius is 0, i.e. (i != ijk_vox_void_center[0])=0.
+                #// This algorithm automatically select the voxel to which the center belong, 
+                #// independently on the radius and voxel size
+                vox_dist_from_xyz[0] *= vox_dist_from_xyz[0] * int(i != ijk_vox_void_center[0])
+                vox_dist_from_xyz[1] *= vox_dist_from_xyz[1] * int(j != ijk_vox_void_center[1])
+                vox_dist_from_xyz[2] *= vox_dist_from_xyz[2] * int(k != ijk_vox_void_center[2])
+
+                vox_in_sphere = (vox_dist_from_xyz[0] + vox_dist_from_xyz[1] + vox_dist_from_xyz[2]) < r2_vox_unit
+
+                id_vox_tmp = i * ngrid * ngrid + j * ngrid + k
+                max_num_tracers += (ind_vox[id_vox_tmp+1]-ind_vox[id_vox_tmp]) * int(vox_in_sphere)
+
+                progr += int(vox_in_sphere)
+                
+    progr_sphere = 0
+    max_num_tracers += 1
+
+    ids_to_expore = np.zeros(max_num_tracers,dtype=np.int64)
+    #// select voxels intersecting with the sphere centered in the void center
+    for id_vox in range(progr):
+        i_tmp = ijk_in_sphere[id_vox,0]
+        j_tmp = ijk_in_sphere[id_vox,1]
+        k_tmp = ijk_in_sphere[id_vox,2]
+        id_vox_tmp = i_tmp * ngrid * ngrid + j_tmp * ngrid + k_tmp
+        #if (i_tmp == 0) & (j_tmp == 2) & (k_tmp == 1):
+        #    print(id_vox_tmp)
+                            
+        for id_ptr in range(ind_vox[id_vox_tmp],ind_vox[id_vox_tmp+1]):
+            id_trs = IDS_voids[id_ptr]
+            id_trs_sel = ids_selected[id_trs]
+            ids_to_expore[progr_sphere] = id_trs
+            dist2 = np.sum(np.square(XYZ_voids[id_trs_sel,:] - XYZ_ref))
+            #progr_sphere += int((dist2 <= dist2_max) & (VolVoids[id_trs] > VolVoids[id_void]) & (id_trs != id_void))
+            progr_sphere += int((dist2 <= dist2_max) & (                        # <--\
+                (VolVoids[id_trs_sel] > VolVoids[id_void_sel]) & (id_trs != id_void) |  # <--- standard condition
+                (VolVoids[id_trs_sel] == VolVoids[id_void_sel]) &                       # <--\
+                (ids_voro_center[id_trs_sel] == ids_voro_center[id_void_sel]) &         # <--- for identical voids started from a different cell
+                (id_trs < id_void)))                                            # <--/
+
+    max_vol = -1.
+    id_overlap = -1
+    for id_trs in ids_to_expore[:progr_sphere]:
+        id_trs_sel = ids_selected[id_trs]
+        Ncells_loop = int(Ncells[id_trs_sel]) + int(round(Ncells[id_trs_sel]%1))
+
+
+        overlap = (id_voro in Ids_voro_dict[id_trs_sel][:Ncells_loop]) & (VolVoids[id_trs_sel] > max_vol)
+
+        id_overlap = id_overlap * int(not overlap) + id_trs * int(overlap)
+        max_vol = max_vol * int(not overlap) + VolVoids[id_trs_sel] * int(overlap)
 
     #return ids_ovlp, Vol_ovlp, Vol_ovlp_frac, progr_ovlp
     return id_overlap
@@ -936,7 +1047,7 @@ def center_in_void_core_pbc(
 
 @jit(nopython=True,parallel=True)
 def center_in_void_loop(
-    IDS_voids, id_sorted, XYZ_voids, VolVoids, Ncells, ids_voro_center, 
+    IDS_voids, ids_selected, id_sorted, XYZ_voids, VolVoids, Ncells, ids_voro_center, 
     max_dist_vds, Ids_voro_dict, ind_vox, ngrid, voxel_side):
     Rmax = np.max(max_dist_vds)
     Nvoids = IDS_voids.shape[0]
@@ -947,6 +1058,24 @@ def center_in_void_loop(
         id_ord = id_sorted[id_loop]
 
         ids_in_void[id_ord] = center_in_void_core(
+            id_loop, ids_selected, ids_voro_center, IDS_voids, XYZ_voids, VolVoids, Ncells, 
+            max_dist_vds, Rmax, Ids_voro_dict, ind_vox, ngrid, voxel_side)
+    return ids_in_void
+
+
+@jit(nopython=True,parallel=True)
+def center_in_void_loop_old(
+    IDS_voids, id_sorted, XYZ_voids, VolVoids, Ncells, ids_voro_center, 
+    max_dist_vds, Ids_voro_dict, ind_vox, ngrid, voxel_side):
+    Rmax = np.max(max_dist_vds)
+    Nvoids = IDS_voids.shape[0]
+    ids_in_void = np.zeros(Nvoids,dtype=np.int64)
+
+    for id_loop in prange(Nvoids):
+        #print(id_loop,'/',IDS_voids.shape[0])
+        id_ord = id_sorted[id_loop]
+
+        ids_in_void[id_ord] = center_in_void_core_old(
             id_loop, ids_voro_center, IDS_voids, XYZ_voids, VolVoids, Ncells, 
             max_dist_vds, Rmax, Ids_voro_dict, ind_vox, ngrid, voxel_side)
     return ids_in_void
@@ -1163,7 +1292,7 @@ def closest_voro(
 
     verboseprint = print if verbose else lambda *a, **k: None
 
-    verboseprint("\ncenter_in_void started.",flush=True)
+    verboseprint("\nclosest_voro started.",flush=True)
 
     if id_selected is None:
         verboseprint("\nid_selected not passed, set condition Ncells > 1.",flush=True)
@@ -1234,7 +1363,7 @@ def closest_voro(
 
     voxel_side_voro = Lbox / ngrid
 
-    xyz_trs_out, ids_reverse_voro, ind_vox_voro = order_coord_tracers_in_voxels_ids_rev_copy(xyz_voro[id_selected,:] - offset, ngrid, Lbox)
+    xyz_trs_out, ids_reverse_voro, ind_vox_voro = order_coord_tracers_in_voxels_ids_rev_copy(xyz_voro - offset, ngrid, Lbox)
     
     verboseprint('\n    order_ids_tracers_selected_in_voxels started',flush=True)
     
@@ -1342,7 +1471,9 @@ def center_in_void(
     t0 = time.time()
     #IDs_vds_ordered, voxel_ptr = order_ids_tracers_in_voxels(xyz_vds, ngrid, Lbox)
     
-    IDs_vds_ordered, id_sorted, ind_vox_voids = order_ids_tracers_selected_in_voxels(xyz_vds - offset, id_selected, ngrid , Lbox)
+    #IDs_vds_ordered, id_sorted, ind_vox_voids = order_ids_tracers_selected_in_voxels(xyz_vds - offset, id_selected, ngrid , Lbox)
+    IDs_vds_ordered, id_sorted, ind_vox_voids = order_ids_tracers_selected_in_voxels(xyz_vds[id_selected,:] - offset, np.arange(id_selected.shape[0]), ngrid , Lbox)
+    
     
     dt = time.time() - t0
     verboseprint("    done,",StrHminSec(dt),flush=True)
@@ -1352,7 +1483,7 @@ def center_in_void(
     if lightcone:
         t0 = time.time()
         ids_in_void = center_in_void_loop(
-            IDs_vds_ordered, id_sorted, xyz_vds - offset, vol_vds, Ncells, 
+            IDs_vds_ordered, id_selected, id_sorted, xyz_vds - offset, vol_vds, Ncells, 
             ids_closest_voro, R_max, IDs_in_voids, ind_vox_voids, ngrid, voxel_side_voids)
         dt = time.time() - t0
     else:
@@ -1370,7 +1501,8 @@ def center_in_void(
     # select overlapping pairs:
     mask_overlapping = ids_in_void > -1
     overlapping_pairs = np.empty((np.sum(mask_overlapping),2),dtype=np.int64)
-    overlapping_pairs[:,0] = id_selected[mask_overlapping]
+    #overlapping_pairs[:,0] = id_selected[mask_overlapping]
+    overlapping_pairs[:,0] = np.arange(id_selected.shape[0])[mask_overlapping]
     overlapping_pairs[:,1] = ids_in_void[mask_overlapping]
 
     return overlapping_pairs

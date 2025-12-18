@@ -148,6 +148,11 @@ class voronoi_threshold_finder:
             if lightcone:
                 ids_voro, self.VoroVol, self.VoroXYZ, self.RAvoro, self.DECvoro, redshift_voro = read_voronoi_vide(vide_path,vide_out_name)
 
+                # regularize VoroVol:
+                self.VoroVol[self.VoroVol == 0] = 1e-25
+                self.VoroVol[np.isnan(self.VoroVol)] = 1e-25
+                self.VoroVol[np.isinf(self.VoroVol)] = 1e-25
+
                 if OmegaM is None:
                     OmegaM = load_pickle_safe(vide_path+'/sample_info.dat')['omegaM']
                 else:
@@ -436,13 +441,15 @@ class voronoi_threshold_finder:
                         self.ids_closest_voro[ith],
                         id_selected=self.ids_selected[ith],Lbox=self.__Lbox,lightcone=self.__lightcone,
                         ngrid=-1,nthreads=self.nthreads,verbose=self.verbose)
-                ids_ovlp_center_out = select_overlaps_center_in_void(self.ids_ovlp_center[ith],self.Vol_interp[:,ith])
+                ids_ovlp_center_out = select_overlaps_center_in_void(self.ids_ovlp_center[ith],self.Vol_interp[self.ids_selected[ith],ith])
 
-                mask_ovlp = np.zeros(self.Xcm.shape[0],dtype=np.bool_)
-                mask_ovlp[self.ids_selected[ith]] = True
+                #mask_ovlp = np.zeros(self.ids_selected[ith].shape[0],dtype=np.bool_)
+                #mask_ovlp[self.ids_selected[ith]] = True
+                mask_ovlp = np.ones(self.ids_selected[ith].shape[0],dtype=np.bool_)
                 mask_ovlp[ids_ovlp_center_out[:,0]] = False
 
-                self.id_out[ith]['center_ovlp'] = np.arange(self.Xcm.shape[0])[mask_ovlp]
+                #self.id_out[ith]['center_ovlp'] = np.arange(self.Xcm.shape[0])[mask_ovlp]
+                self.id_out[ith]['center_ovlp'] = np.arange(self.ids_selected[ith].shape[0])[mask_ovlp]
                 del mask_ovlp, ids_ovlp_center_out
                 
                 verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
