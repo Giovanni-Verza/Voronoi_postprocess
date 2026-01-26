@@ -1,100 +1,10 @@
-import glob
-import numpy as np
-import os
-import time
-import healpy as hp
-import joblib
-
-from numba.core import types
-from numba.typed import Dict
-from numba import jit, prange, set_num_threads, get_num_threads, get_thread_id
-
-from . read_funcs import read_adjfile, read_voronoi_vide, load_pickle_safe
-from . masks import borders_mask_bruteforce, dist_limit_mask, borders_mask
-from . overlaps import select_overlaps, overlapping_fraction, center_in_void, closest_voro, select_overlaps_center_in_void
-from . utilities import from_XYZ_to_rRAdec, from_rRAdec_to_XYZ, ComovingDistanceOverh, RedshiftFromComovingDistanceOverh, StrHminSec
-from . voronoi_threshold import is_in_arr, voronoi_threshold
-
-
-int_array = types.int64[::1]
-int_array_2d = types.int64[:,::1]
-float_array = types.float64[::1]
-float_array_2d = types.float64[:,::1]
-
-
-
-
-@jit(nopython=True,parallel=True)
-def compute_overlaps_all_parallel_compiled(
-    Nthresholds, Nfrac, frac_ovlp_arr, ids_selected, sor_by_vol, ids_ovlp, Vol_ovlp_frac, num_ovlps):
-
-    Ncombo = Nthresholds * Nfrac
-
-
-    len_ids_out = np.zeros(Ncombo,dtype=np.int64)
-    
-    id_out_dict = Dict.empty(
-        key_type=types.int64,
-        value_type=int_array)
-
-    for ith in range(Nthresholds):
-        for ifrac in range(Nfrac):
-            id_out_dict[ith * Nfrac + ifrac] = np.empty(sor_by_vol[ith].shape[0],dtype=np.int64)
-
-    for ii in prange(Ncombo):
-        ith = int(ii / Nfrac)
-        ifrac = ii - ith * Nfrac
-
-        id_out_tmp = select_overlaps(frac_ovlp_arr[ifrac],ids_selected[ith],sor_by_vol[ith], ids_ovlp[ith], Vol_ovlp_frac[ith], num_ovlps[ith])
-
-        len_ids_out[ii] = id_out_tmp.shape[0]
-        id_out_dict[ii][:len_ids_out[ii]] = id_out_tmp
-    
-    return id_out_dict, len_ids_out
-
-
-def compute_overlaps_all_parallel(
-    ids_threshold,frac_ovlp_arr, Xcm, Vol_interp, Ncells_in_void, VoroXYZ, VoroVol, ID_voro_dict,Lbox,lightcone,ids_selected,nthreads,verbose):
-
-    Nthresholds = ids_threshold.shape[0]
-    Nfrac = frac_ovlp_arr.shape[0]
-
-    Ncombo = Nthresholds * Nfrac
-
-    ids_ovlp = Dict.empty(
-        key_type=types.int64,
-        value_type=int_array_2d)
-    
-    Vol_ovlp_frac = Dict.empty(
-        key_type=types.int64,
-        value_type=float_array_2d)
-    
-    num_ovlps = Dict.empty(
-        key_type=types.int64,
-        value_type=int_array)
-    
-    sor_by_vol = Dict.empty(
-        key_type=types.int64,
-        value_type=int_array)
-        
-    for ith in range(Nthresholds):
-        #print(ith,flush=True)
-        ids_ovlp[ith], Vol_ovlp, Vol_ovlp_frac[ith], num_ovlps[ith] = overlapping_fraction(
-            Xcm[:,ids_threshold[ith],:], Vol_interp[:,ids_threshold[ith]], Ncells_in_void[:,ids_threshold[ith]], VoroXYZ, VoroVol, ID_voro_dict,
-            Lbox=Lbox,lightcone=lightcone,id_selected=ids_selected[ids_threshold[ith]],nthreads=nthreads,verbose=verbose)
-        sor_by_vol[ith] = (np.argsort(Vol_interp[ids_selected[ith],ith])[::-1]).astype(dtype=np.int64, order='C')
-
-
-    id_out_dict, len_ids_out = compute_overlaps_all_parallel_compiled(
-        Nthresholds, Nfrac, frac_ovlp_arr, ids_selected, sor_by_vol, ids_ovlp, Vol_ovlp_frac, num_ovlps)
-    
-    return id_out_dict, len_ids_out
-
 
 class voronoi_threshold_finder:
-    def __init__(self,threshold,lightcone=True,Lbox=-1.,ID_core=None,neighbor_ptr=None,neighbor_ids=None,VoroXYZ=None,VoroVol=None,tracer_dens=None,
-                 npadding_ang=None,ang_paddig_rad=None,
-                 vide_path=None,comov_range=None,z_range=None,OmegaM=None,w0=-1.,wa=0.,nthreads=-1,verbose=True,max_num_part=-1):
+    def __init__(self,threshold,lightcone=True,Lbox=-1.,
+                 ID_core=None,neighbor_ptr=None,neighbor_ids=None,VoroVol=None,
+                 VoroXYZ=None,RAvoro=None,DECvoro=None,redshift_voro=None,dist_voro=None,
+                 tracer_dens=None,ang_paddig_rad=None,comov_range=None,z_range=None,
+                 vide_path=None,OmegaM=None,w0=-1.,wa=0.,nthreads=-1,verbose=True,max_num_part=-1):
         
         if verbose:
             verbose = True
@@ -103,6 +13,18 @@ class voronoi_threshold_finder:
         self.__Lbox = Lbox
         self.__lightcone = lightcone
 
+        self.ID_core = ID_core
+        self.VoroVol = VoroVol
+        self.VoroXYZ = VoroXYZ
+        self.RAvoro = RAvoro
+        self.DECvoro = DECvoro
+        self.ang_paddig_rad = ang_paddig_rad
+        self.vide_path = vide_path
+        self.comov_range = comov_range
+        self.z_range = z_range
+        self.OmegaM = OmegaM
+        self.w0 = w0
+        self.wa = wa
         
         verboseprint = print if verbose else lambda *a, **k: None
         
@@ -129,7 +51,55 @@ class voronoi_threshold_finder:
 
         self.threshold = np.array(threshold).reshape(-1)
 
-        if not (vide_path is None):
+        if (vide_path is None):
+            if self.ID_core is None:
+                raise ValueError('ID_core not passed.')
+            if self.VoroVol is None:
+                raise ValueError('VoroVol not passed.')
+            if (neighbor_ptr is None) | (neighbor_ids is None):
+                raise ValueError('neighbor_ptr or neighbor_ids not passed.')
+            if max_num_part <= 0:
+                max_num_part = len(self.VoroVol) // len(self.ID_core)
+                verboseprint('    max_num_part < 0: authomatically set to len(VoroVol) // len(ID_core):',max_num_part,flush=True)
+                
+
+            if lightcone:
+                if ((self.RAvoro is None) | (self.DECvoro is None)): 
+                    if (self.VoroXYZ is None):
+                        raise ValueError('Voronoi coordinates not passed, pass either VoroXYZ, or RAvoro, DECvoro and dist_voro or redhsift voro, or both.')
+                    print('RAvoro and DECvoro not passed, computed from VoroXYZ.',flush=True)
+                    self.RAvoro, self.DECvoro, dist_voro = from_XYZ_to_rRAdec(VoroXYZ[:,0],VoroXYZ[:,1],VoroXYZ[:,2])
+                if (tracer_dens is None):
+                    raise ValueError('tracer_dens not passed.')
+                if (self.VoroXYZ is None):
+
+                    if dist_voro is None:
+                        if redshift_voro is None:
+                            raise ValueError('Voronoi coordinates not passed, pass either VoroXYZ, or RAvoro, DECvoro and dist_voro or redhsift_voro, or both.')
+                        
+                        if OmegaM is None:
+                            print('OmegaM not passed. I will convert redhsift to comoving distance as r=c*z [km].',flush=True)
+                            dist_voro = c_kms * redshift_voro
+                        else:
+                            dist_z = ComovingDistanceOverh(OmegaM,w0,wa)
+                            dist_voro = dist_z.get_dist(redshift_voro)
+                    self.VoroXYZ[:,:] = np.array(from_rRAdec_to_XYZ(dist_voro,self.RAvoro,self.DECvoro)).T
+            else:
+                if (self.VoroXYZ is None):
+                    raise ValueError('Voronoi coordinates not passed.')
+                
+                if (Lbox is None):
+                    Lbox = max(VoroXYZ) - min(VoroXYZ)
+                    raise Warning('Lbox not passed, set to max(VoroXYZ) - min(VoroXYZ)')
+                self.__Lbox = Lbox
+                verboseprint('    Lbox from VIDE:',self.__Lbox,flush=True)
+                if (tracer_dens is None):
+                    tracer_dens = np.full(self.VoroVol.shape[0],self.VoroVol.shape[0]/self.__Lbox**3) #self.__Lbox**3/self.VoroVol.shape[0]/self.VoroVol
+                else:
+                    raise Warning('tracer_dens passed differs from None, tracer_dens will not be computed from Vide output.')
+                
+            
+        else:
             # load VTFE scheme from adjfile
             verboseprint('    Loading VIDE data.',flush=True)
             t0 = time.time()
