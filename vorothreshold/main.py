@@ -173,7 +173,7 @@ class voronoi_threshold_finder:
                         else:
                             dist_z = ComovingDistanceOverh(OmegaM,w0,wa)
                             dist_voro = dist_z.get_dist(redshift_voro)
-                    self.VoroXYZ[:,:] = np.array(from_rRAdec_to_XYZ(dist_voro,self.RAvoro,self.DECvoro)).T
+                    self.VoroXYZ = np.array(from_rRAdec_to_XYZ(dist_voro,self.RAvoro,self.DECvoro)).T
             else:
                 if (self.VoroXYZ is None):
                     raise ValueError('Voronoi coordinates not passed.')
