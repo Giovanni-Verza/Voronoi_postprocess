@@ -104,7 +104,6 @@ class voronoi_threshold_finder:
         self.__Lbox = Lbox
         self.__lightcone = lightcone
 
-        self.ID_core = ID_core
         self.VoroVol = VoroVol
         self.VoroXYZ = VoroXYZ
         self.RAvoro = RAvoro
@@ -142,14 +141,14 @@ class voronoi_threshold_finder:
         self.threshold = np.array(threshold).reshape(-1)
 
         if (vide_path is None):
-            if self.ID_core is None:
+            if ID_core is None:
                 raise ValueError('ID_core not passed.')
             if self.VoroVol is None:
                 raise ValueError('VoroVol not passed.')
             if (neighbor_ptr is None) | (neighbor_ids is None):
                 raise ValueError('neighbor_ptr or neighbor_ids not passed.')
             if max_num_part <= 0:
-                max_num_part = len(self.VoroVol) // len(self.ID_core)
+                max_num_part = len(self.VoroVol) // len(ID_core)
                 verboseprint('    max_num_part < 0: authomatically set to len(VoroVol) // len(ID_core):',max_num_part,flush=True)
                 
 
@@ -258,12 +257,16 @@ class voronoi_threshold_finder:
                 raise ValueError('VTF not passed. Either pass neighbor_ptr and neighbor_ids or vide_path.')
 
 
-
+        # check for isolated voronoi cells:
+        mask_ID = neighbor_ptr[ID_core] != neighbor_ptr[ID_core+1]
+        self.ID_core = ID_core[mask_ID]
+        if np.sum(mask_ID) != mask_ID.shape[0]:
+            verboseprint('        found',mask_ID.shape[0]-mask_ID.shape[0],'IDcore corresponding to isolated Voronoi cells. They will be removed',flush=True)
         #verboseprint('    voronoi_threshold started, nthreads =',nthreads,flush=True)
         t0 = time.time()
         # Get threshold void properties for all the threshold values passed
         self.void_selected, self.ID_voro_dict, self.Xcm, self.Vol_interp, self.Ncells_in_void, self.ell_eigenvalues, self.ell_eigenvectors = voronoi_threshold(
-            self.threshold,ID_core,neighbor_ptr,neighbor_ids,self.VoroXYZ,self.VoroVol,tracer_dens,Lbox=self.__Lbox,nthreads=nthreads,verbose=verbose,max_num_part=max_num_part)
+            self.threshold,self.ID_core,neighbor_ptr,neighbor_ids,self.VoroXYZ,self.VoroVol,tracer_dens,Lbox=self.__Lbox,nthreads=nthreads,verbose=verbose,max_num_part=max_num_part)
         verboseprint('        main computation done:',StrHminSec(time.time()-t0),flush=True)
         
 
