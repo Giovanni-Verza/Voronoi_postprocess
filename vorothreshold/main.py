@@ -3,7 +3,7 @@ class voronoi_threshold_finder:
     def __init__(self,threshold,lightcone=True,Lbox=-1.,
                  ID_core=None,neighbor_ptr=None,neighbor_ids=None,VoroVol=None,
                  VoroXYZ=None,RAvoro=None,DECvoro=None,redshift_voro=None,dist_voro=None,
-                 tracer_dens=None,ang_paddig_rad=None,comov_range=None,z_range=None,
+                 tracer_dens=None,npadding_ang=None,ang_paddig_rad=None,comov_range=None,z_range=None,
                  vide_path=None,OmegaM=None,w0=-1.,wa=0.,nthreads=-1,verbose=True,max_num_part=-1):
         
         if verbose:
@@ -18,7 +18,6 @@ class voronoi_threshold_finder:
         self.VoroXYZ = VoroXYZ
         self.RAvoro = RAvoro
         self.DECvoro = DECvoro
-        self.ang_paddig_rad = ang_paddig_rad
         self.vide_path = vide_path
         self.comov_range = comov_range
         self.z_range = z_range
