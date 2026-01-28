@@ -95,7 +95,8 @@ class voronoi_threshold_finder:
                  ID_core=None,neighbor_ptr=None,neighbor_ids=None,VoroVol=None,
                  VoroXYZ=None,RAvoro=None,DECvoro=None,redshift_voro=None,dist_voro=None,
                  tracer_dens=None,npadding_ang=None,ang_paddig_rad=None,comov_range=None,z_range=None,
-                 vide_path=None,OmegaM=None,w0=-1.,wa=0.,nthreads=-1,verbose=True,max_num_part=-1):
+                 vide_path=None,OmegaM=None,w0=-1.,wa=0.,nthreads=-1,verbose=True,max_num_part=-1,
+                 healpix_maskpath=None,healpix_mask=None,nside=128):
         
         if verbose:
             verbose = True
@@ -232,6 +233,15 @@ class voronoi_threshold_finder:
                 self.VoroXYZ[:,:] = np.array(from_rRAdec_to_XYZ(dist_voro,self.RAvoro,self.DECvoro)).T
 
                 del ids_voro, redshift_voro
+
+                if healpix_mask is None:
+                    if healpix_maskpath is None:
+                        healpix_maskpath = vide_path + '/mask_map.fits'
+                    else:
+                        raise Warning('Healpix mask at '+str(healpix_maskpath)+' will be used instead of the vide mask.')
+                else:
+                    raise Warning('Healpix mask passed. It  will be used instead of the vide mask.')
+                
                 
             else:
                 ids_voro, self.VoroVol, self.VoroXYZ, RAvoro, DECvoro, redshift_voro = read_voronoi_vide(vide_path,vide_out_name)
@@ -306,23 +316,29 @@ class voronoi_threshold_finder:
                         trs_mask = (dist_voro >= self.comov_range[ith,0]) & (dist_voro <= self.comov_range[ith,1])
                         ang_paddig_rad = 2. * np.max(tracer_dens[trs_mask]**(-1./3.) / dist_voro[trs_mask])
                 if ith == 0:
-                    try:
-                        mask_pix = hp.read_map(vide_path + '/mask_map.fits')
+                    if healpix_mask is None:
+                        try:
+                            mask_pix = hp.read_map(healpix_maskpath)
+                            nside = hp.get_nside(mask_pix)
+                            verboseprint('    angular mask loaded, nside =',nside,flush=True)
+                        except:
+                            if healpix_maskpath != None:
+                                print('healpix_maskpath not found in path, computing with nside =',nside,flush=True)
+                            npix = hp.nside2npix(nside)
+                            mask_pix = np.zeros(npix,dtype=np.float32)
+                            pix = hp.ang2pix(nside, np.pi/2. - self.DECvoro*np.pi/180., np.pi/180.*self.RAvoro)
+                            for ii in np.arange(npix)[~mask_pix.astype(np.bool_)]:
+                                if np.sum(mask_pix[hp.get_all_neighbours(nside,ii)]) >= 6:
+                                    mask_pix[ii] = 1.
+                            verboseprint('    angular mask not in path, builded with nside =',nside,flush=True)
+                    else:
+                        mask_pix = healpix_mask.astype(np.float32)
                         nside = hp.get_nside(mask_pix)
-                        verboseprint('    angular mask loaded, nside =',nside,flush=True)
-                    except:
-                        nside = 128
-                        npix = hp.nside2npix(nside)
-                        mask_pix = np.zeros(npix)
-                        pix = hp.ang2pix(nside, np.pi/2. - self.DECvoro*np.pi/180., np.pi/180.*self.RAvoro)
-                        for ii in np.arange(npix)[~mask_pix.astype(np.bool_)]:
-                            if np.sum(mask_pix[hp.get_all_neighbours(nside,ii)]) >= 6:
-                                mask_pix[ii] = 1.
-                        verboseprint('    angular mask not in path, builded with nside =',nside,flush=True)
-                    #npadding_ang = int((ang_paddig_rad + hp.nside2resol(nside)) / hp.nside2resol(nside))
+                        verboseprint('    angular mask passe, nside =',nside,'converted to np.float32',flush=True)
+                        #npadding_ang = int((ang_paddig_rad + hp.nside2resol(nside)) / hp.nside2resol(nside))
 
                     if npadding_ang is None:
-                        npadding_ang = int(round(ang_paddig_rad/ hp.nside2resol(nside)))
+                        npadding_ang = int(round(ang_paddig_rad / hp.nside2resol(nside)))
                         verboseprint('    ang_paddig_rad =',ang_paddig_rad,'npadding_ang =',npadding_ang,flush=True)
                     else:
                         npadding_ang = int(npadding_ang)
