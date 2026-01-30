@@ -395,20 +395,20 @@ class voro_in_vide_voids:
 
     def get_voro_from_uniqueID(self,voidID):
         #partOut = np.zeros(0,np.int_)
-        partOut = []
+        partOut = np.zeros(0,dtype=np.int32)
         for iZ in range(self.numZones[voidID]):
-            partOut.append(self.partID[self.zoneIDs[voidID][iZ]])
+            partOut = np.append(partOut,self.partID[self.zoneIDs[voidID][iZ]])
 
-        return np.array(partOut).reshape(-1)
+        return partOut
     
 
     def get_voro_from_ID(self,ivd):
         #partOut = np.zeros(0,np.int_)
-        partOut = []
+        partOut = np.zeros(0,dtype=np.int32)
         for iZ in range(self.numZones[self.voidID[ivd]]):
-            partOut.append(self.partID[self.zoneIDs[self.voidID[ivd]][iZ]])
+            partOut = np.append(partOut,self.partID[self.zoneIDs[self.voidID[ivd]][iZ]])
 
-        return np.array(partOut).reshape(-1)
+        return partOut
     
     
 
