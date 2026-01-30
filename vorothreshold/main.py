@@ -10,7 +10,7 @@ from numba.typed import Dict
 from numba import jit, prange, set_num_threads, get_num_threads, get_thread_id
 
 from . read_funcs import read_adjfile, read_voronoi_vide, load_pickle_safe
-from . masks import borders_mask_bruteforce, dist_limit_mask, borders_mask
+from . masks import borders_mask_bruteforce, dist_limit_mask, borders_mask, borders_mask_inner
 from . overlaps import select_overlaps, overlapping_fraction, center_in_void, closest_voro, select_overlaps_center_in_void
 from . utilities import from_XYZ_to_rRAdec, from_rRAdec_to_XYZ, ComovingDistanceOverh, RedshiftFromComovingDistanceOverh, StrHminSec
 from . voronoi_threshold import is_in_arr, voronoi_threshold
@@ -96,7 +96,7 @@ class voronoi_threshold_finder:
                  VoroXYZ=None,RAvoro=None,DECvoro=None,redshift_voro=None,dist_voro=None,
                  tracer_dens=None,npadding_ang=None,ang_paddig_rad=None,comov_range=None,z_range=None,
                  vide_path=None,OmegaM=None,w0=-1.,wa=0.,nthreads=-1,verbose=True,max_num_part=-1,
-                 healpix_maskpath=None,healpix_mask=None,nside=128):
+                 healpix_maskpath=None,healpix_mask=None,voro_border_mask=None,nside=128):
         
         if verbose:
             verbose = True
@@ -319,7 +319,7 @@ class voronoi_threshold_finder:
                     if ang_paddig_rad is None:
                         trs_mask = (dist_voro >= self.comov_range[ith,0]) & (dist_voro <= self.comov_range[ith,1])
                         ang_paddig_rad = 2. * np.max(tracer_dens[trs_mask]**(-1./3.) / dist_voro[trs_mask])
-                if ith == 0:
+                if (ith == 0) & (voro_border_mask is None):
                     if healpix_mask is None:
                         try:
                             mask_pix = hp.read_map(healpix_maskpath)
@@ -349,9 +349,12 @@ class voronoi_threshold_finder:
                         verboseprint('    npadding_ang =',npadding_ang,flush=True)
 
                 #mask_ids = borders_mask_bruteforce(self.RAvoro, self.DECvoro, self.Ncells_in_void[:,ith], self.ID_voro_dict,nside)
-                mask_ids, mask_voro, self.healpix_mask[ith] = borders_mask(mask_pix,self.RAvoro,self.DECvoro,self.ID_voro_dict,self.Ncells_in_void[:,ith],npadding_ang,nthreads=nthreads)
-                self.ids_selected[ith] = dist_limit_mask(mask_ids,self.Xcm[:,ith,:],self.comov_range[ith,0],self.comov_range[ith,1],
-                                            self.VoroXYZ,self.Ncells_in_void[:,ith],self.ID_voro_dict) 
+                if voro_border_mask is None:
+                    mask_ids, mask_voro, self.healpix_mask[ith] = borders_mask(mask_pix,self.RAvoro,self.DECvoro,self.ID_voro_dict,self.Ncells_in_void[:,ith],npadding_ang,nthreads=nthreads)
+                    self.ids_selected[ith] = dist_limit_mask(mask_ids,self.Xcm[:,ith,:],self.comov_range[ith,0],self.comov_range[ith,1],
+                                                self.VoroXYZ,self.Ncells_in_void[:,ith],self.ID_voro_dict) 
+                else:
+                    self.ids_selected[ith] = borders_mask_inner(voro_border_mask,self.ID_voro_dict,self.Ncells_in_void[:,ith])
                                 
                 self.RA = dict()
                 self.DEC = dict()
