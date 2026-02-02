@@ -98,8 +98,8 @@ class voronoi_threshold_finder:
                  vide_path=None,OmegaM=None,w0=-1.,wa=0.,nthreads=-1,verbose=True,max_num_part=-1,
                  healpix_maskpath=None,healpix_mask=None,voro_border_mask=None,nside=128):
         
-        if verbose:
-            verbose = True
+        #if verbose:
+        #    verbose = True
         self.verbose = verbose
         self.z_from_dist = None
         self.__Lbox = Lbox
@@ -179,7 +179,7 @@ class voronoi_threshold_finder:
                     raise ValueError('Voronoi coordinates not passed.')
                 
                 if (Lbox is None):
-                    Lbox = max(VoroXYZ) - min(VoroXYZ)
+                    Lbox = np.max(VoroXYZ) - np.min(VoroXYZ)
                     raise Warning('Lbox not passed, set to max(VoroXYZ) - min(VoroXYZ)')
                 self.__Lbox = Lbox
                 verboseprint('    Lbox from VIDE:',self.__Lbox,flush=True)
@@ -287,27 +287,28 @@ class voronoi_threshold_finder:
             for ith in range(len(threshold)):
                 self.ids_selected[ith] = np.arange(self.Ncells_in_void.shape[0])[self.Ncells_in_void[:,ith] > 1.]
         else:
-            if (not (comov_range is None)) & (not (z_range is None)) & (lightcone):
-                raise Warning('both comov_range and z_range are passed, only comov_range will be considered.')
-            if (comov_range is None) & (z_range is None) & (lightcone):
-                i_min = np.argmin(dist_voro)
-                i_max = np.argmax(dist_voro)
-                comov_range = [dist_voro[i_min] + 3.5 * (tracer_dens[i_min] ** (-1./3.)),
-                            dist_voro[i_max] - 3.5 * (tracer_dens[i_max] ** (-1./3.))]
-                raise ValueError('comov_range and z_range are both None. One of them is required when lightcone = True.')
-            if (comov_range is None):
-                comov_range = dist_z.get_dist(np.array(z_range))
-        
-            comov_range = np.array(comov_range)
-            if len(comov_range.shape) == 1:
-                self.comov_range = np.empty((len(threshold),2))
-                self.comov_range[:,0] = min(comov_range)
-                self.comov_range[:,1] = max(comov_range)
-            elif comov_range.shape[0] < len(threshold):
-                self.comov_range = np.empty((len(threshold),2))
-                self.comov_range[:,0] = min(comov_range)
-                self.comov_range[:,1] = max(comov_range)
-                raise Warning('comov_range shape do not match threshold lenght. Only min and max of comov_range will be considered')
+            if voro_border_mask is None:
+                if (not (comov_range is None)) & (not (z_range is None)) & (lightcone):
+                    raise Warning('both comov_range and z_range are passed, only comov_range will be considered.')
+                if (comov_range is None) & (z_range is None) & (lightcone):
+                    i_min = np.argmin(dist_voro)
+                    i_max = np.argmax(dist_voro)
+                    comov_range = [dist_voro[i_min] + 3.5 * (tracer_dens[i_min] ** (-1./3.)),
+                                dist_voro[i_max] - 3.5 * (tracer_dens[i_max] ** (-1./3.))]
+                    raise ValueError('comov_range and z_range are both None. One of them is required when lightcone = True.')
+                if (comov_range is None):
+                    comov_range = dist_z.get_dist(np.array(z_range))
+            
+                comov_range = np.array(comov_range)
+                if len(comov_range.shape) == 1:
+                    self.comov_range = np.empty((len(threshold),2))
+                    self.comov_range[:,0] = min(comov_range)
+                    self.comov_range[:,1] = max(comov_range)
+                elif comov_range.shape[0] < len(threshold):
+                    self.comov_range = np.empty((len(threshold),2))
+                    self.comov_range[:,0] = min(comov_range)
+                    self.comov_range[:,1] = max(comov_range)
+                    raise Warning('comov_range shape do not match threshold lenght. Only min and max of comov_range will be considered')
 
 
             verboseprint('    angular and radial mask started.',flush=True)
@@ -315,44 +316,46 @@ class voronoi_threshold_finder:
 
             self.healpix_mask = dict()
             for ith in range(len(threshold)):
-                if npadding_ang is None:
-                    if ang_paddig_rad is None:
-                        trs_mask = (dist_voro >= self.comov_range[ith,0]) & (dist_voro <= self.comov_range[ith,1])
-                        ang_paddig_rad = 2. * np.max(tracer_dens[trs_mask]**(-1./3.) / dist_voro[trs_mask])
-                if (ith == 0) & (voro_border_mask is None):
-                    if healpix_mask is None:
-                        try:
-                            mask_pix = hp.read_map(healpix_maskpath)
-                            nside = hp.get_nside(mask_pix)
-                            verboseprint('    angular mask loaded, nside =',nside,flush=True)
-                        except:
-                            if healpix_maskpath != None:
-                                print('healpix_maskpath not found in path, computing with nside =',nside,flush=True)
-                            npix = hp.nside2npix(nside)
-                            mask_pix = np.zeros(npix,dtype=np.float32)
-                            pix = hp.ang2pix(nside, np.pi/2. - self.DECvoro*np.pi/180., np.pi/180.*self.RAvoro)
-                            for ii in np.arange(npix)[~mask_pix.astype(np.bool_)]:
-                                if np.sum(mask_pix[hp.get_all_neighbours(nside,ii)]) >= 6:
-                                    mask_pix[ii] = 1.
-                            verboseprint('    angular mask not in path, builded with nside =',nside,flush=True)
-                    else:
-                        mask_pix = healpix_mask.astype(np.float32)
-                        nside = hp.get_nside(mask_pix)
-                        verboseprint('    angular mask passe, nside =',nside,'converted to np.float32',flush=True)
-                        #npadding_ang = int((ang_paddig_rad + hp.nside2resol(nside)) / hp.nside2resol(nside))
-
-                    if npadding_ang is None:
-                        npadding_ang = int(round(ang_paddig_rad / hp.nside2resol(nside)))
-                        verboseprint('    ang_paddig_rad =',ang_paddig_rad,'npadding_ang =',npadding_ang,flush=True)
-                    else:
-                        npadding_ang = int(npadding_ang)
-                        verboseprint('    npadding_ang =',npadding_ang,flush=True)
-
-                #mask_ids = borders_mask_bruteforce(self.RAvoro, self.DECvoro, self.Ncells_in_void[:,ith], self.ID_voro_dict,nside)
                 if voro_border_mask is None:
+                    if npadding_ang is None:
+                        if ang_paddig_rad is None:
+                            trs_mask = (dist_voro >= self.comov_range[ith,0]) & (dist_voro <= self.comov_range[ith,1])
+                            ang_paddig_rad = 2. * np.max(tracer_dens[trs_mask]**(-1./3.) / dist_voro[trs_mask])
+                    if (ith == 0):
+                        if healpix_mask is None:
+                            try:
+                                mask_pix = hp.read_map(healpix_maskpath)
+                                nside = hp.get_nside(mask_pix)
+                                verboseprint('    angular mask loaded, nside =',nside,flush=True)
+                            except:
+                                if healpix_maskpath != None:
+                                    print('healpix_maskpath not found in path, computing with nside =',nside,flush=True)
+                                npix = hp.nside2npix(nside)
+                                mask_pix = np.zeros(npix,dtype=np.float32)
+                                pix = hp.ang2pix(nside, np.pi/2. - self.DECvoro*np.pi/180., np.pi/180.*self.RAvoro)
+                                for ii in np.arange(npix)[~mask_pix.astype(np.bool_)]:
+                                    if np.sum(mask_pix[hp.get_all_neighbours(nside,ii)]) >= 6:
+                                        mask_pix[ii] = 1.
+                                verboseprint('    angular mask not in path, builded with nside =',nside,flush=True)
+                        else:
+                            mask_pix = healpix_mask.astype(np.float32)
+                            nside = hp.get_nside(mask_pix)
+                            verboseprint('    angular mask passe, nside =',nside,'converted to np.float32',flush=True)
+                            #npadding_ang = int((ang_paddig_rad + hp.nside2resol(nside)) / hp.nside2resol(nside))
+
+                        if npadding_ang is None:
+                            npadding_ang = int(round(ang_paddig_rad / hp.nside2resol(nside)))
+                            verboseprint('    ang_paddig_rad =',ang_paddig_rad,'npadding_ang =',npadding_ang,flush=True)
+                        else:
+                            npadding_ang = int(npadding_ang)
+                            verboseprint('    npadding_ang =',npadding_ang,flush=True)
+
+                    #mask_ids = borders_mask_bruteforce(self.RAvoro, self.DECvoro, self.Ncells_in_void[:,ith], self.ID_voro_dict,nside)
+                    #if voro_border_mask is None:
                     mask_ids, mask_voro, self.healpix_mask[ith] = borders_mask(mask_pix,self.RAvoro,self.DECvoro,self.ID_voro_dict,self.Ncells_in_void[:,ith],npadding_ang,nthreads=nthreads)
                     self.ids_selected[ith] = dist_limit_mask(mask_ids,self.Xcm[:,ith,:],self.comov_range[ith,0],self.comov_range[ith,1],
                                                 self.VoroXYZ,self.Ncells_in_void[:,ith],self.ID_voro_dict) 
+                    self.z_range = self.z_from_dist.get_redshift(self.comov_range.reshape(-1)).reshape(self.comov_range.shape)
                 else:
                     self.ids_selected[ith] = borders_mask_inner(voro_border_mask,self.ID_voro_dict,self.Ncells_in_void[:,ith])
                                 
@@ -361,7 +364,6 @@ class voronoi_threshold_finder:
                 self.comov_dist = dict()
                 self.redshift = dict()
                 self.z_from_dist = RedshiftFromComovingDistanceOverh(OmegaM,w0,wa)
-                self.z_range = self.z_from_dist.get_redshift(self.comov_range.reshape(-1)).reshape(self.comov_range.shape)
 
             verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
 
