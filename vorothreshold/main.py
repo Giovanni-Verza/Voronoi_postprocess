@@ -313,6 +313,12 @@ class voronoi_threshold_finder:
 
             verboseprint('    angular and radial mask started.',flush=True)
             t0 = time.time()
+           
+            self.RA = dict()
+            self.DEC = dict()
+            self.comov_dist = dict()
+            self.redshift = dict()
+            self.z_from_dist = RedshiftFromComovingDistanceOverh(OmegaM,w0,wa)
 
             self.healpix_mask = dict()
             for ith in range(len(threshold)):
@@ -358,13 +364,7 @@ class voronoi_threshold_finder:
                     self.z_range = self.z_from_dist.get_redshift(self.comov_range.reshape(-1)).reshape(self.comov_range.shape)
                 else:
                     self.ids_selected[ith] = borders_mask_inner(voro_border_mask,self.ID_voro_dict,self.Ncells_in_void[:,ith])
-                                
-                self.RA = dict()
-                self.DEC = dict()
-                self.comov_dist = dict()
-                self.redshift = dict()
-                self.z_from_dist = RedshiftFromComovingDistanceOverh(OmegaM,w0,wa)
-
+                     
             verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
 
         

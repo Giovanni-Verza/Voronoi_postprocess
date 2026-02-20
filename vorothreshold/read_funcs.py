@@ -73,7 +73,7 @@ def read_adjfile_slow(adjfile):
             neighbor_ptr[i+1] = neighbor_ptr[i] + nadj
             
         # Neighboring vertices of vertices - Delaunay scheme:
-        neighbor_ids = np.empty(neighbor_ptr[-1],dtype=np.int_)
+        neighbor_ids = -np.ones(neighbor_ptr[-1],dtype=np.int_)
 
         # Fill neighbor_ids
         for i in range(Npart):
