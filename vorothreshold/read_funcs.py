@@ -13,7 +13,7 @@ import shutil
 
 
 __all__ = ['read_voronoi_vide','read_voronoi_vide', 'voro_in_vide_voids', 'vide_voids_cat','load_pickle_safe'
-           'read_adjfile', read_adjfile_safe]
+           'read_adjfile', 'read_adjfile_safe']
 
 
 def load_pickle_safe(pkl_file):
