@@ -12,7 +12,8 @@ import shutil
 #from typing import List
 
 
-__all__ = ['read_voronoi_vide','read_voronoi_vide', 'voro_in_vide_voids', 'vide_voids_cat','load_pickle_safe']
+__all__ = ['read_voronoi_vide','read_voronoi_vide', 'voro_in_vide_voids', 'vide_voids_cat','load_pickle_safe'
+           'read_adjfile', read_adjfile_safe]
 
 
 def load_pickle_safe(pkl_file):
@@ -133,6 +134,64 @@ def read_adjfile(adjfile):
         read_adjfile_inner_loop(Npart,neighbor_ptr,neighbor_ids,raw_data)
     return neighbor_ptr, neighbor_ids
         
+
+
+@jit(nopython=True)
+def read_adjfile_counts(Npart,raw_data):
+    #neighbor_ids = np.empty(neighbor_ptr[-1], dtype=np.int_)
+
+    neighbor_counter = np.zeros(Npart, dtype=np.int_)
+    index = 0
+    for i in range(Npart):
+        num_neighbors = raw_data[index]
+        index += 1
+        for _ in range(num_neighbors):
+            j = raw_data[index]
+            neighbor_counter[i] += 1
+            neighbor_counter[j] += 1
+            index += 1
+    return neighbor_counter
+
+def read_adjfile_safe(adjfile):
+    with open(adjfile, "rb") as adj:
+        # Read the total number of particles
+        Npart = struct.unpack('i', adj.read(4))[0]
+
+        adj_sizes_unsafe = np.frombuffer(adj.read(4 * Npart), dtype=np.int32)
+
+        data = adj.read(np.sum(adj_sizes_unsafe) * 4)
+        
+        # Read all neighbors' IDs in bulk
+        raw_data = np.frombuffer(data, dtype=np.int32)
+        
+        # Read all adjacency sizes in one go
+        adj_sizes = read_adjfile_counts(Npart,raw_data) #np.frombuffer(adj.read(4 * Npart), dtype=np.int32)
+    
+    with open(adjfile, "rb") as adj:
+        # Read the total number of particles
+        Npart = struct.unpack('i', adj.read(4))[0]
+
+        adj_sizes_unsafe = np.frombuffer(adj.read(4 * Npart), dtype=np.int32)
+
+        # Compute neighbor_ptr
+        neighbor_ptr = np.zeros(Npart + 1, dtype=np.int_)
+        np.cumsum(adj_sizes, out=neighbor_ptr[1:])
+        
+        # Total number of neighbors
+        total_neighbors = neighbor_ptr[-1]
+        
+        # Pre-allocate neighbor_ids
+        neighbor_ids = np.empty(total_neighbors, dtype=np.int_)
+
+        data = adj.read(total_neighbors * 4)
+        
+        # Read all neighbors' IDs in bulk
+        raw_data = np.frombuffer(data, dtype=np.int32)
+
+        read_adjfile_inner_loop(Npart,neighbor_ptr,neighbor_ids,raw_data)
+    return neighbor_ptr, neighbor_ids
+        
+
 
 
 def read_voronoi_vide(vide_out,sample_name=None):
