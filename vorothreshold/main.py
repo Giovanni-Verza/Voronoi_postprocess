@@ -269,8 +269,8 @@ class voronoi_threshold_finder:
 
         # check for isolated voronoi cells:
         mask_ID = neighbor_ptr[ID_core] != neighbor_ptr[ID_core+1]
+        self.ID_core = ID_core[mask_ID]
         if np.sum(mask_ID) != mask_ID.shape[0]:
-            self.ID_core = ID_core[mask_ID]
             verboseprint('        found',mask_ID.shape[0]-mask_ID.shape[0],'IDcore corresponding to isolated Voronoi cells. They will be removed',flush=True)
         del mask_ID
         #verboseprint('    voronoi_threshold started, nthreads =',nthreads,flush=True)
