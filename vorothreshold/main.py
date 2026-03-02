@@ -277,7 +277,7 @@ class voronoi_threshold_finder:
         t0 = time.time()
         # Get threshold void properties for all the threshold values passed
         self.void_selected, self.ID_voro_dict, self.Xcm, self.Vol_interp, self.Ncells_in_void, self.ell_eigenvalues, self.ell_eigenvectors = voronoi_threshold(
-            self.threshold,self.ID_core,neighbor_ptr,neighbor_ids,self.VoroXYZ,self.VoroVol,tracer_dens,Lbox=self.__Lbox,nthreads=nthreads,verbose=verbose,max_num_part=max_num_part)
+            self.threshold,self.ID_core,neighbor_ptr,neighbor_ids,self.VoroXYZ,self.VoroVol,tracer_dens,Lbox=self.__Lbox,nthreads=self.nthreads,verbose=verbose,max_num_part=max_num_part)
         verboseprint('        main computation done:',StrHminSec(time.time()-t0),flush=True)
         
 

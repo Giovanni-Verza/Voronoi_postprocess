@@ -1184,7 +1184,7 @@ def overlapping_fraction(
     if (nthreads <= 0) | (nthreads > nthreads_tot):
         nthreads = nthreads_tot
 
-    set_num_threads(min(nthreads,id_selected.shape[0]))
+    set_num_threads(max(1,min(nthreads,id_selected.shape[0])))
 
     verboseprint('\n    nthreads set to',nthreads,flush=True)
 
