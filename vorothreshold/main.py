@@ -551,10 +551,13 @@ class voronoi_threshold_finder:
                 verboseprint('        select center_ovlp, ith=',ith,flush=True)
                 t0 = time.time()
                 if not (ith in self.ids_closest_voro.keys()):
-                    self.ids_closest_voro[ith] = closest_voro(
-                        self.Xcm[:,ith,:], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
-                        id_selected=self.ids_selected[ith],Lbox=self.__Lbox,lightcone=self.__lightcone,
-                        ngrid=-1,max_iterations=3,nthreads=self.nthreads,verbose=self.verbose)
+                    if len(self.ids_selected[ith]) == 0:
+                        self.ids_closest_voro[ith] = np.zeros(0,dtype=np.int64)
+                    else:
+                        self.ids_closest_voro[ith] = closest_voro(
+                            self.Xcm[:,ith,:], self.Ncells_in_void[:,ith], self.VoroXYZ, self.VoroVol, self.ID_voro_dict,
+                            id_selected=self.ids_selected[ith],Lbox=self.__Lbox,lightcone=self.__lightcone,
+                            ngrid=-1,max_iterations=3,nthreads=self.nthreads,verbose=self.verbose)
                     
                 if not (ith in self.ids_ovlp_center.keys()):
                     if len(self.ids_selected[ith]) == 0:
