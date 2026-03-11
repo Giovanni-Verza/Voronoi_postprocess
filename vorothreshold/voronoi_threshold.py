@@ -6,6 +6,7 @@ from numba.typed import Dict
 from numba import jit, prange, set_num_threads, get_num_threads, get_thread_id
 from . utilities import StrHminSec
 
+
 int_array = types.int64[::1]
 
 
@@ -173,8 +174,8 @@ def cluster_accretion(
     
     numerator_dens = 1. / tracer_dens[IDnext]
     Dens = numerator_dens / VolTot
-    Xcm = VoroXYZ[IDnext,:] * VoroVol[IDnext] / tracer_dens[IDnext] #np.zeros(3)
-    Norm_cm = VoroVol[IDnext] / tracer_dens[IDnext] #np.zeros(3)
+    #Xcm = VoroXYZ[IDnext,:] * VoroVol[IDnext] / tracer_dens[IDnext] #np.zeros(3)
+    #Norm_cm = VoroVol[IDnext] / tracer_dens[IDnext] #np.zeros(3)
 
     for ith in range(Nthresholds):
         Condition = (Dens <= threshold[ith]) & (Ncells < numPart) #(Ncells < numPart-1)
@@ -182,7 +183,7 @@ def cluster_accretion(
         while Condition:
             ## Add neighbor particles and update ID_to_explore:
             VtoCluster = is_not_in_arr(neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]],ID_to_explore[:Nneighbors])
-            VtoCluster &= is_not_in_arr(neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]],IDvoro_in_void[:Ncells+1])
+            VtoCluster &= is_not_in_arr(neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]],IDvoro_in_void[:Ncells]) #+1])
             NtoAdd = np.sum(VtoCluster)
             ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]][VtoCluster]
 
@@ -199,13 +200,14 @@ def cluster_accretion(
                 VolTot += VoroVol[IDnext]
                 
                 Dens = numerator_dens / VolTot
-                Xcm += VoroXYZ[IDnext,:] * VoroVol[IDnext] / tracer_dens[IDnext]
-                Norm_cm += VoroVol[IDnext] / tracer_dens[IDnext]
+                #Xcm += VoroXYZ[IDnext,:] * VoroVol[IDnext] / tracer_dens[IDnext]
+                #Norm_cm += VoroVol[IDnext] / tracer_dens[IDnext]
 
                 inner_progr += 1
                 Cond_innert = (Dens <= threshold[ith]) & (Ncells < numPart) & (inner_progr < NtoAdd)
 
-
+            if NtoAdd == 0: #For isolated groups
+                break
             Nneighbors += NtoAdd
 
             Ichange = np.argwhere(ID_to_explore[:Nneighbors] == IDanchor)[0,0]
@@ -218,11 +220,13 @@ def cluster_accretion(
             Condition = (Dens <= threshold[ith]) & (Ncells < numPart)
             #out_progr += 1
 
+
+        if NtoAdd == 0: #For isolated groups
+            return
+
         if Ncells < 2:     
             continue   
             #return Xcm_interp, Vol_interp, Ncells_in_void, eigenvalues, eigenvectors
-
-
 
         VolPrevious = VolTot-VoroVol[IDvoro_in_void[Ncells-1]]
         numerator_dens_previous = numerator_dens - 1./tracer_dens[IDvoro_in_void[Ncells-1]]

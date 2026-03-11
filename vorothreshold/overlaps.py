@@ -1184,7 +1184,7 @@ def overlapping_fraction(
     if (nthreads <= 0) | (nthreads > nthreads_tot):
         nthreads = nthreads_tot
 
-    set_num_threads(min(nthreads,id_selected.shape[0]))
+    set_num_threads(max(1,min(nthreads,id_selected.shape[0])))
 
     verboseprint('\n    nthreads set to',nthreads,flush=True)
 
@@ -1214,11 +1214,11 @@ def overlapping_fraction(
 
         offset = np.min(xyz_vds[id_selected,:],axis=0)
         max_values = np.max(xyz_vds[id_selected,:],axis=0)
-        Lbox = np.max(max_values - offset)
+        Lbox = max(1.,np.max(max_values - offset))
 
         offset -= Lbox*1e-4
         max_values += Lbox*1e-4
-        Lbox = np.max(max_values - offset)
+        Lbox = max(1.,np.max(max_values - offset))
 
         
         verboseprint("    min(xyz_vds) =",*offset,flush=True)
