@@ -6,6 +6,7 @@ from numba.typed import Dict
 from numba import jit, prange, set_num_threads, get_num_threads, get_thread_id
 from . utilities import StrHminSec
 
+
 int_array = types.int64[::1]
 
 
