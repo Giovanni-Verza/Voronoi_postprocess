@@ -117,16 +117,17 @@ def read_adjfile(adjfile):
         adj_sizes = np.frombuffer(adj.read(4 * Npart), dtype=np.int32)
         
         # Compute neighbor_ptr
-        neighbor_ptr = np.zeros(Npart + 1, dtype=np.int_)
+        neighbor_ptr = np.zeros(Npart + 1, dtype=np.int32)
         np.cumsum(adj_sizes, out=neighbor_ptr[1:])
         
         # Total number of neighbors
         total_neighbors = neighbor_ptr[-1]
         
         # Pre-allocate neighbor_ids
-        neighbor_ids = np.empty(total_neighbors, dtype=np.int_)
+        neighbor_ids = np.empty(total_neighbors, dtype=np.int32)
 
-        data = adj.read(total_neighbors * 4)
+        #data = adj.read(total_neighbors * 4)
+        data = adj.read((total_neighbors + Npart) * 4)
         
         # Read all neighbors' IDs in bulk
         raw_data = np.frombuffer(data, dtype=np.int32)
@@ -159,7 +160,8 @@ def read_adjfile_safe(adjfile):
 
         adj_sizes_unsafe = np.frombuffer(adj.read(4 * Npart), dtype=np.int32)
 
-        data = adj.read(np.sum(adj_sizes_unsafe) * 4)
+        #data = adj.read(np.sum(adj_sizes_unsafe) * 4)
+        data = adj.read((np.sum(adj_sizes_unsafe) + Npart) * 4)
         
         # Read all neighbors' IDs in bulk
         raw_data = np.frombuffer(data, dtype=np.int32)
