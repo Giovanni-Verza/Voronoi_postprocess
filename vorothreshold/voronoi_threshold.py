@@ -338,7 +338,8 @@ def cluster_accretion_loops_sequential(ID_voro_dict, threshold_arr,ID_core_arr,n
     for iv in range(Num_vds):
         ID_voro_dict[iv] = np.zeros(max_num_part,dtype=np.int_)
         cluster_accretion(Ncells_in_void[iv,:], ID_voro_dict[iv],ID_core_arr[iv],max_num_part,neighbor_ptr,neighbor_ids,Nthresholds,threshold_arr,VoroXYZ,VoroVol,tracer_dens)
-        Ncells_loop = int(Ncells_in_void[iv,-1]) + int((Ncells_in_void[iv,-1]%1) > 0)
+        Ncells_loop = np.max(Ncells_in_void[iv,:])
+        Ncells_loop = int((Ncells_loop%1) > 0) + int(Ncells_loop)
         ID_voro_dict[iv] = ID_voro_dict[iv][:Ncells_loop]
     return Ncells_in_void
 
@@ -443,7 +444,7 @@ def voronoi_threshold(threshold,ID_core_arr,neighbor_ptr,neighbor_ids,VoroXYZ,Vo
     verboseprint('\n    computation started',flush=True)
     if nthreads > 1:
         for i_sel in range(Num_selection):
-            ID_voro_dict[i_sel] = np.zeros(max_num_part,dtype=np.int_)
+            ID_voro_dict[i_sel] = np.zeros(max_num_part,dtype=np.int64)
         Ncells_in_void = cluster_accretion_loops_parallel(
             ID_voro_dict, threshold_arr,ID_core_arr[input_mask],neighbor_ptr,neighbor_ids,VoroXYZ,VoroVol,tracer_dens,max_num_part)
     else:

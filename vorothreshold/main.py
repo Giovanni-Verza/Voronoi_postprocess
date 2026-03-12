@@ -373,6 +373,8 @@ class voronoi_threshold_finder:
                     #mask_ids = borders_mask_bruteforce(self.RAvoro, self.DECvoro, self.Ncells_in_void[:,ith], self.ID_voro_dict,nside)
                     #if voro_border_mask is None:
                     mask_ids, mask_voro, self.healpix_mask[ith] = borders_mask(mask_pix,self.RAvoro,self.DECvoro,self.ID_voro_dict,self.Ncells_in_void[:,ith],npadding_ang,nthreads=nthreads)
+                    mask_ids = mask_ids[self.Ncells_in_void[mask_ids,ith]>0]
+
                     if len(mask_ids) == 0:
                         self.ids_selected[ith] = np.zeros(0,dtype=np.int64)
                     else:
@@ -381,6 +383,7 @@ class voronoi_threshold_finder:
                     self.z_range = self.z_from_dist.get_redshift(self.comov_range.reshape(-1)).reshape(self.comov_range.shape)
                 else:
                     self.ids_selected[ith] = borders_mask_inner(voro_border_mask,self.ID_voro_dict,self.Ncells_in_void[:,ith])
+                    self.ids_selected[ith] = self.ids_selected[ith][self.Ncells_in_void[self.ids_selected[ith],ith]>0]
                      
             verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
 
