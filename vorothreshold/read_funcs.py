@@ -185,7 +185,7 @@ def read_adjfile_safe(adjfile):
         # Pre-allocate neighbor_ids
         neighbor_ids = np.empty(total_neighbors, dtype=np.int_)
 
-        data = adj.read(total_neighbors * 4)
+        data = adj.read((total_neighbors + Npart) * 4)
         
         # Read all neighbors' IDs in bulk
         raw_data = np.frombuffer(data, dtype=np.int32)
