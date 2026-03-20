@@ -65,8 +65,8 @@ def read_adjfile_slow(adjfile):
         Npart = struct.unpack('i', adj.read(4))[0]  # Read number of particles
         
         # Pointer to neighboring vertices of vertices:
-        neighbor_ptr = np.zeros(Npart+1,dtype=np.int_)
-        neighbor_counter = np.zeros(Npart,dtype=np.int_)
+        neighbor_ptr = np.zeros(Npart+1,dtype=np.int32)
+        neighbor_counter = np.zeros(Npart,dtype=np.int32)
 
         # Read adjacency data
         for i in range(Npart):
@@ -74,7 +74,7 @@ def read_adjfile_slow(adjfile):
             neighbor_ptr[i+1] = neighbor_ptr[i] + nadj
             
         # Neighboring vertices of vertices - Delaunay scheme:
-        neighbor_ids = -np.ones(neighbor_ptr[-1],dtype=np.int_)
+        neighbor_ids = -np.ones(neighbor_ptr[-1],dtype=np.int32)
 
         # Fill neighbor_ids
         for i in range(Npart):
@@ -92,9 +92,9 @@ def read_adjfile_slow(adjfile):
 
 @jit(nopython=True)
 def read_adjfile_inner_loop(Npart,neighbor_ptr,neighbor_ids,raw_data):
-    #neighbor_ids = np.empty(neighbor_ptr[-1], dtype=np.int_)
+    #neighbor_ids = np.empty(neighbor_ptr[-1], dtype=np.int32)
 
-    neighbor_counter = np.zeros(Npart, dtype=np.int_)
+    neighbor_counter = np.zeros(Npart, dtype=np.int32)
     index = 0
     for i in range(Npart):
         num_neighbors = raw_data[index]
@@ -139,9 +139,9 @@ def read_adjfile(adjfile):
 
 @jit(nopython=True)
 def read_adjfile_counts(Npart,raw_data):
-    #neighbor_ids = np.empty(neighbor_ptr[-1], dtype=np.int_)
+    #neighbor_ids = np.empty(neighbor_ptr[-1], dtype=np.int32)
 
-    neighbor_counter = np.zeros(Npart, dtype=np.int_)
+    neighbor_counter = np.zeros(Npart, dtype=np.int32)
     index = 0
     for i in range(Npart):
         num_neighbors = raw_data[index]
@@ -176,14 +176,14 @@ def read_adjfile_safe(adjfile):
         adj_sizes_unsafe = np.frombuffer(adj.read(4 * Npart), dtype=np.int32)
 
         # Compute neighbor_ptr
-        neighbor_ptr = np.zeros(Npart + 1, dtype=np.int_)
+        neighbor_ptr = np.zeros(Npart + 1, dtype=np.int32)
         np.cumsum(adj_sizes, out=neighbor_ptr[1:])
         
         # Total number of neighbors
         total_neighbors = neighbor_ptr[-1]
         
         # Pre-allocate neighbor_ids
-        neighbor_ids = np.empty(total_neighbors, dtype=np.int_)
+        neighbor_ids = np.empty(total_neighbors, dtype=np.int32)
 
         data = adj.read((total_neighbors + Npart) * 4)
         
@@ -340,11 +340,11 @@ class OLD_voro_in_vide_voids:
         else:
             prefix = ""
 
-        self.voidID = np.loadtxt(os.path.expanduser(vide_out)+"/"+prefix+"voidDesc_"+dataPortion+"_"+sample_name+".out", comments="#", skiprows=2)[:,1].astype(np.int_)
+        self.voidID = np.loadtxt(os.path.expanduser(vide_out)+"/"+prefix+"voidDesc_"+dataPortion+"_"+sample_name+".out", comments="#", skiprows=2)[:,1].astype(np.int32)
 
     def get_voro_from_uniqueID(self,voidID):
 
-        #partOut = np.zeros(0,np.int_)
+        #partOut = np.zeros(0,np.int32)
         partOut = []
         for iZ in range(self.void2Zones[voidID].numZones):
             zoneID = self.void2Zones[voidID].zoneIDs[iZ]
@@ -356,7 +356,7 @@ class OLD_voro_in_vide_voids:
 
     def get_voro_from_ID(self,ivd):
 
-        #partOut = np.zeros(0,np.int_)
+        #partOut = np.zeros(0,np.int32)
         partOut = []
         for iZ in range(self.void2Zones[self.voidID[ivd]].numZones):
             zoneID = self.void2Zones[self.voidID[ivd]].zoneIDs[iZ]
@@ -452,10 +452,13 @@ class voro_in_vide_voids:
         else:
             prefix = ""
 
-        self.voidID = np.loadtxt(os.path.expanduser(vide_out)+"/"+prefix+"voidDesc_"+dataPortion+"_"+sample_name+".out", comments="#", skiprows=2)[:,1].astype(np.int_)
+        try:
+            self.voidID = np.loadtxt(os.path.expanduser(vide_out)+"/"+prefix+"voidDesc_"+dataPortion+"_"+sample_name+".out", comments="#", skiprows=2)[:,1].astype(np.int32)
+        except:
+            self.voidID = np.empty(0,dtype=np.int32)
 
     def get_voro_from_uniqueID(self,voidID):
-        #partOut = np.zeros(0,np.int_)
+        #partOut = np.zeros(0,np.int32)
         partOut = np.zeros(0,dtype=np.int32)
         for iZ in range(self.numZones[voidID]):
             partOut = np.append(partOut,self.partID[self.zoneIDs[voidID][iZ]])
@@ -464,7 +467,7 @@ class voro_in_vide_voids:
     
 
     def get_voro_from_ID(self,ivd):
-        #partOut = np.zeros(0,np.int_)
+        #partOut = np.zeros(0,np.int32)
         partOut = np.zeros(0,dtype=np.int32)
         for iZ in range(self.numZones[self.voidID[ivd]]):
             partOut = np.append(partOut,self.partID[self.zoneIDs[self.voidID[ivd]][iZ]])
@@ -549,26 +552,36 @@ def vide_voids_cat(vide_out_dir,sample_name=None,dataPortion='all',untrimmed=Tru
                 do_info = True
                 break
 
+    exception = False
     dict_out = dict()
     if do_center:
         catData = np.loadtxt(os.path.expanduser(vide_out_dir)+"/"+prefix+"centers_"+dataPortion+"_"+sample_name+".out", comments="#")
         # center x,y,z (Mpc/h), volume (normalized), radius (Mpc/h), redshift, volume (Mpc/h^3), void ID, density contrast, num part, parent ID, tree level, number of children, central density
-
+        if catData.shape == (0,):
+            catData = np.empty((0,14),dtype=np.float32)
+            exception = True
+            #raise Warning('No voids detected.')
+        
         dict_out['barycenter'] = catData[:,:3]
         dict_out['volume_norm'] = catData[:,3]
         dict_out['radius'] = catData[:,4]
         dict_out['redshift'] = catData[:,5]
         dict_out['volume'] = catData[:,6]
-        dict_out['voidID'] = catData[:,7].astype(np.int_)
+        dict_out['voidID'] = catData[:,7].astype(np.int32)
         dict_out['dens_contr'] = catData[:,8]
-        dict_out['num_part'] = catData[:,9].astype(np.int_)
-        dict_out['parent_ID'] = catData[:,10].astype(np.int_)
-        dict_out['tree_level'] = catData[:,11].astype(np.int_)
-        dict_out['num_children'] = catData[:,12].astype(np.int_)
+        dict_out['num_part'] = catData[:,9].astype(np.int32)
+        dict_out['parent_ID'] = catData[:,10].astype(np.int32)
+        dict_out['tree_level'] = catData[:,11].astype(np.int32)
+        dict_out['num_children'] = catData[:,12].astype(np.int32)
         dict_out['central_dens'] = catData[:,13]
 
     if do_sky:
         catData = np.loadtxt(os.path.expanduser(vide_out_dir)+"/"+prefix+"sky_positions_"+dataPortion+"_"+sample_name+".out")
+        if catData.shape == (0,):
+            catData = np.empty((0,5),dtype=np.float32)
+            if not exception:
+                exception = True
+                #raise Warning('No voids detected.')
         dict_out['RA'] = catData[:,0]
         dict_out['DEC'] = catData[:,1]
 
@@ -579,13 +592,18 @@ def vide_voids_cat(vide_out_dir,sample_name=None,dataPortion='all',untrimmed=Tru
         #ID FileVoid# CoreParticle CoreDens ZoneVol Zone#Part Void#Zones VoidVol Void#Part VoidDensContrast VoidProb
 
         catData = np.loadtxt(os.path.expanduser(vide_out_dir)+"/"+prefix+"voidDesc_"+dataPortion+"_"+sample_name+".out", comments="#", skiprows=2)
+        if catData.shape == (0,):
+            catData = np.empty((0,11),dtype=np.float32)
+            if not exception:
+                exception = True
+                #raise Warning('No voids detected.')
 
-        dict_out['file_void'] = catData[:,1].astype(np.int_)
-        dict_out['core_ID'] = catData[:,2].astype(np.int_)
+        dict_out['file_void'] = catData[:,1].astype(np.int32)
+        dict_out['core_ID'] = catData[:,2].astype(np.int32)
         dict_out['core_dens'] = catData[:,3]
         dict_out['zone_vol'] = catData[:,4]
-        dict_out['zone_part'] = catData[:,5].astype(np.int_)
-        dict_out['void_zone'] = catData[:,6].astype(np.int_)
+        dict_out['zone_part'] = catData[:,5].astype(np.int32)
+        dict_out['void_zone'] = catData[:,6].astype(np.int32)
         dict_out['void_prob'] = catData[:,10]
 
         del catData
@@ -593,6 +611,9 @@ def vide_voids_cat(vide_out_dir,sample_name=None,dataPortion='all',untrimmed=Tru
 
     if do_core:
         voro_id, VolCell, VoroXYZ, RAvoro, DECvoro, redshift_voro = read_voronoi_vide(os.path.expanduser(vide_out_dir),sample_name)
+        if not exception:
+            exception = True
+            #raise Warning('No voids detected.')
         del voro_id, VolCell
 
         dict_out['core_pos'] = VoroXYZ[dict_out['core_ID'],:]
@@ -605,8 +626,14 @@ def vide_voids_cat(vide_out_dir,sample_name=None,dataPortion='all',untrimmed=Tru
 
     if do_shape:
         fileName = os.path.expanduser(vide_out_dir)+"/"+prefix+"shapes_"+dataPortion+"_"+sample_name+".out"
-
-        ellipticity = np.loadtxt(fileName, comments="#")[:,1:14]
+        try:
+            ellipticity = np.loadtxt(fileName, comments="#")[:,1:14]
+        except:
+            if np.loadtxt(fileName, comments="#").shape == (0,):
+                ellipticity = np.empty((0,14),dtype=np.float32)
+                if not exception:
+                    exception = True
+                    #raise Warning('No voids detected.')
         dict_out['ellip'] = ellipticity[:,0]
         dict_out['eigenvalues'] = ellipticity[:,1:4]
         dict_out['eigenvec1'] = ellipticity[:,4:7]
