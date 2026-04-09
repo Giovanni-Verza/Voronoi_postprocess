@@ -274,12 +274,13 @@ def get_void_properties(Xcm_interp, Vol_interp, Ncells_in_void, eigenvalues, eig
 
         eigenvalues[ith,:], eigenvectors[ith,:,:] = np.linalg.eig(shape_matrix)
 
-
 @jit(nopython=True)
 def get_void_properties_pbc(Xcm_interp, Vol_interp, Ncells_in_void, eigenvalues, eigenvectors,IDvoro_in_void,Nthresholds,VoroXYZ,VoroVol,tracer_dens,Lbox):
     shape_matrix = np.zeros((3,3))
 
-    Ncells_tot =  int(Ncells_in_void[-1]) + int((Ncells_in_void[-1] % 1) > 0)
+    #Ncells_tot =  int(Ncells_in_void[-1]) + int((Ncells_in_void[-1] % 1) > 0)
+    Ncells_max =  np.max(Ncells_in_void)
+    Ncells_tot = int(Ncells_max) + int((Ncells_max % 1) > 0)
 
     sgn_pbc = np.array([1.,-1.])[(VoroXYZ[IDvoro_in_void[0],:] < 0.5 * Lbox).astype(np.int_)]
     xyz_loop = np.copy(VoroXYZ[IDvoro_in_void[:Ncells_tot],:])
