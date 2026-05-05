@@ -9,7 +9,8 @@ from numba.core import types
 from numba.typed import Dict
 from numba import jit, prange, set_num_threads, get_num_threads, get_thread_id
 
-from . read_funcs import read_adjfile, read_voronoi_vide, load_pickle_safe
+from . read_funcs import (read_adjfile, read_voronoi_vide, load_pickle_safe,
+                          is_vide_voro, find_adjfile, read_void_database)
 from . masks import borders_mask_bruteforce, dist_limit_mask, borders_mask, borders_mask_inner
 from . overlaps import select_overlaps, overlapping_fraction, center_in_void, closest_voro, select_overlaps_center_in_void
 from . utilities import from_XYZ_to_rRAdec, from_rRAdec_to_XYZ, ComovingDistanceOverh, RedshiftFromComovingDistanceOverh, StrHminSec
@@ -208,16 +209,21 @@ class voronoi_threshold_finder:
             verboseprint('    Loading VIDE data.',flush=True)
             t0 = time.time()
 
-            adjfile = glob.glob(vide_path+'/adj_*')[0] #vide_path + '/adj_' + vide_out_name + '.dat'
+            adjfile = find_adjfile(vide_path)
             neighbor_ptr, neighbor_ids = read_adjfile(adjfile)
 
-            # recover vide_out_name
-            vide_out_name = adjfile.split('adj_')[1].split('.dat')[0]
-            #if ID_core is None:
-            # Load ids of cells belonging to minima
-            ID_core = np.loadtxt(vide_path+'/untrimmed_voidDesc_all_'+vide_out_name+'.out', comments='#', skiprows=2)[:,2].astype(np.int64)
-            # Load Voronoi cells volume, ids and tracers position
-            
+            if is_vide_voro(vide_path):
+                # voro branch: single void_database.out, no per-sample suffix
+                vide_out_name = ''
+                _db = read_void_database(vide_path)
+                ID_core = _db['core_ID'].astype(np.int64)
+                _num_part_db = _db['num_part']
+            else:
+                # master branch: parse sample name from adj_<sample>.dat
+                vide_out_name = os.path.basename(adjfile).replace('adj_','').replace('.dat','')
+                ID_core = np.loadtxt(vide_path+'/untrimmed_voidDesc_all_'+vide_out_name+'.out', comments='#', skiprows=2)[:,2].astype(np.int64)
+                _num_part_db = None
+
 
             if lightcone:
                 ids_voro, self.VoroVol, self.VoroXYZ, self.RAvoro, self.DECvoro, redshift_voro = read_voronoi_vide(vide_path,vide_out_name)
@@ -273,8 +279,10 @@ class voronoi_threshold_finder:
             verboseprint('        done:',StrHminSec(time.time()-t0),flush=True)
 
             if max_num_part <= 0:
-
-                max_num_part = int(5 * np.max(np.loadtxt(vide_path+'/untrimmed_centers_all_'+vide_out_name+'.out', comments="#")[:,9]))
+                if _num_part_db is not None:
+                    max_num_part = int(5 * np.max(_num_part_db)) if _num_part_db.size else 0
+                else:
+                    max_num_part = int(5 * np.max(np.loadtxt(vide_path+'/untrimmed_centers_all_'+vide_out_name+'.out', comments="#")[:,9]))
                 verboseprint('    max_num_part < 0: authomatically set to 5 * max(num_part):',max_num_part,flush=True)
 
             if (neighbor_ptr is None) or (neighbor_ids is None):
