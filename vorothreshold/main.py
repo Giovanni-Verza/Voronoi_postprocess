@@ -81,7 +81,7 @@ def compute_overlaps_all_parallel(
         #print(ith,flush=True)
 
 
-        if len(ids_threshold[ith]) == 0:
+        if len(ids_selected[ids_threshold[ith]]) == 0:
             sor_by_vol[ith] = np.zeros(0,dtype=np.int64)
             #self.id_out[ith][frac_ovlp] = np.zeros(0,dtype=np.int64)
 
@@ -96,7 +96,7 @@ def compute_overlaps_all_parallel(
         ids_ovlp[ith], Vol_ovlp, Vol_ovlp_frac[ith], num_ovlps[ith] = overlapping_fraction(
             Xcm[:,ids_threshold[ith],:], Vol_interp[:,ids_threshold[ith]], Ncells_in_void[:,ids_threshold[ith]], VoroXYZ, VoroVol, ID_voro_dict,
             Lbox=Lbox,lightcone=lightcone,id_selected=ids_selected[ids_threshold[ith]],nthreads=nthreads,verbose=verbose)
-        sor_by_vol[ith] = (np.argsort(Vol_interp[ids_selected[ith],ith])[::-1]).astype(dtype=np.int64, order='C')
+        sor_by_vol[ith] = (np.argsort(Vol_interp[ids_selected[ids_threshold[ith]],ith])[::-1]).astype(dtype=np.int64, order='C')
 
 
     id_out_dict, len_ids_out = compute_overlaps_all_parallel_compiled(
