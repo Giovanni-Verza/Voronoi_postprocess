@@ -222,19 +222,32 @@ def cluster_accretion(
 
 
         if NtoAdd == 0: #For isolated groups
+            # PERCOLATION FIX: the void has accreted its entire connected
+            # underdense component (the frontier is empty), so it is at its
+            # terminal size and cannot grow at any higher threshold.  The old
+            # code did a bare `return` here, BEFORE writing Ncells_in_void[ith],
+            # leaving the size at 0 for this threshold and every higher one (the
+            # `for ith` loop never reaches them) -> the void was silently dropped
+            # from the catalog at and above this threshold.  Instead, record its
+            # full size (all Ncells cells included, integer -> frac handled as the
+            # max_num_part case downstream) for this and all remaining thresholds,
+            # then return.
+            if Ncells >= 2:
+                for jth in range(ith, Nthresholds):
+                    Ncells_in_void[jth] = Ncells
             return
 
-        if Ncells < 2:     
-            continue   
+        if Ncells < 2:
+            continue
             #return Xcm_interp, Vol_interp, Ncells_in_void, eigenvalues, eigenvectors
 
         VolPrevious = VolTot-VoroVol[IDvoro_in_void[Ncells-1]]
         numerator_dens_previous = numerator_dens - 1./tracer_dens[IDvoro_in_void[Ncells-1]]
         frac = (threshold[ith] * VolPrevious - numerator_dens_previous) / (1. / tracer_dens[IDvoro_in_void[Ncells-1]] - threshold[ith] * VoroVol[IDvoro_in_void[Ncells-1]])
         #if Ncells == numPart frac is forced to be 1
-        frac *= int(Ncells < numPart) 
+        frac *= int(Ncells < numPart)
         frac += int(Ncells == numPart)
-        Ncells_in_void[ith] = Ncells -1 + frac 
+        Ncells_in_void[ith] = Ncells -1 + frac
         
 
 @jit(nopython=True)
