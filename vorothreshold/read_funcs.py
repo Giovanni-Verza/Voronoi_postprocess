@@ -1,4 +1,5 @@
 import glob
+import sys
 import numpy as np
 import struct
 from numba import jit
@@ -61,33 +62,42 @@ def find_zone_part_file(vide_out, sample_name=None):
     return os.path.join(os.path.expanduser(vide_out), 'voidPart_'+sample_name+'.dat')
 
 
+# Column layout of void_database.out in this vide_public_v2 build. Header:
+#   Void ID, is_contaminated, is_central, center (x,y,z), volume (normalized),
+#   volume, radius, redshift, RA, Dec, density contrast, max extent,
+#   nearest edge, num part, parent ID, tree level, num children, central density,
+#   core particle, core density, zone vol, zone num part, num zones,
+#   void probability, ellipticity, eig(1..3), eigv(1..3)-x..z
+# (replaces the older single string 'type' column with is_contaminated +
+#  is_central int flags; every subsequent column is shifted by +1.)
 _VOID_DATABASE_COLS = {
-    'voidID':       (0,  np.int32),
-    'type':         (1,  None),  # string column
-    'cx':           (2,  np.float64),
-    'cy':           (3,  np.float64),
-    'cz':           (4,  np.float64),
-    'volume_norm':  (5,  np.float64),
-    'volume':       (6,  np.float64),
-    'radius':       (7,  np.float64),
-    'redshift':     (8,  np.float64),
-    'RA':           (9,  np.float64),
-    'DEC':          (10, np.float64),
-    'dens_contr':   (11, np.float64),
-    'max_extent':   (12, np.float64),
-    'nearest_edge': (13, np.float64),
-    'num_part':     (14, np.int32),
-    'parent_ID':    (15, np.int32),
-    'tree_level':   (16, np.int32),
-    'num_children': (17, np.int32),
-    'central_dens': (18, np.float64),
-    'core_ID':      (19, np.int64),
-    'core_dens':    (20, np.float64),
-    'zone_vol':     (21, np.float64),
-    'zone_part':    (22, np.int32),
-    'void_zone':    (23, np.int32),
-    'void_prob':    (24, np.float64),
-    'ellip':        (25, np.float64),
+    'voidID':          (0,  np.int32),
+    'is_contaminated': (1,  np.int32),
+    'is_central':      (2,  np.int32),
+    'cx':              (3,  np.float64),
+    'cy':              (4,  np.float64),
+    'cz':              (5,  np.float64),
+    'volume_norm':     (6,  np.float64),
+    'volume':          (7,  np.float64),
+    'radius':          (8,  np.float64),
+    'redshift':        (9,  np.float64),
+    'RA':              (10, np.float64),
+    'DEC':             (11, np.float64),
+    'dens_contr':      (12, np.float64),
+    'max_extent':      (13, np.float64),
+    'nearest_edge':    (14, np.float64),
+    'num_part':        (15, np.int32),
+    'parent_ID':       (16, np.int32),
+    'tree_level':      (17, np.int32),
+    'num_children':    (18, np.int32),
+    'central_dens':    (19, np.float64),
+    'core_ID':         (20, np.int64),
+    'core_dens':       (21, np.float64),
+    'zone_vol':        (22, np.float64),
+    'zone_part':       (23, np.int32),
+    'void_zone':       (24, np.int32),   # "num zones"
+    'void_prob':       (25, np.float64),
+    'ellip':           (26, np.float64),
 }
 
 
@@ -95,10 +105,11 @@ def read_void_database(vide_out, dataPortion='all', untrimmed=True):
     """Parse void_database.out (VIDE voro branch).
 
     Returns a dict with named columns. dataPortion / untrimmed reproduce the
-    pre-trim filename semantics from VIDE 1.0:
+    pre-trim filename semantics from VIDE 1.0, using this build's
+    is_contaminated / is_central int flags (which replace the old string 'type'):
         untrimmed=True                  -> all rows (default)
-        dataPortion='all',  untrimmed=False  -> exclude type == 'edge'
-        dataPortion='central'                -> keep only type == 'central'
+        dataPortion='all',  untrimmed=False  -> exclude is_contaminated == 1
+        dataPortion='central'                -> keep only is_central == 1
     """
     path = os.path.join(os.path.expanduser(vide_out), 'void_database.out')
     if not os.path.exists(path):
@@ -119,9 +130,9 @@ def read_void_database(vide_out, dataPortion='all', untrimmed=True):
 
     if not untrimmed:
         if dataPortion == 'central':
-            mask = arr[:, 1] == 'central'
+            mask = arr[:, 2].astype(np.float64).astype(np.int32) == 1   # is_central
         else:
-            mask = arr[:, 1] != 'edge'
+            mask = arr[:, 1].astype(np.float64).astype(np.int32) == 0   # not is_contaminated
         arr = arr[mask]
 
     out = dict()
@@ -132,10 +143,10 @@ def read_void_database(vide_out, dataPortion='all', untrimmed=True):
             out[name] = arr[:, col].astype(tt)
 
     out['barycenter']  = np.stack([out.pop('cx'), out.pop('cy'), out.pop('cz')], axis=1)
-    out['eigenvalues'] = arr[:, 26:29].astype(np.float64)
-    out['eigenvec1']   = arr[:, 29:32].astype(np.float64)
-    out['eigenvec2']   = arr[:, 32:35].astype(np.float64)
-    out['eigenvec3']   = arr[:, 35:38].astype(np.float64)
+    out['eigenvalues'] = arr[:, 27:30].astype(np.float64)
+    out['eigenvec1']   = arr[:, 30:33].astype(np.float64)
+    out['eigenvec2']   = arr[:, 33:36].astype(np.float64)
+    out['eigenvec3']   = arr[:, 36:39].astype(np.float64)
 
     return out
 
@@ -166,9 +177,13 @@ with h5py.File('{temp_filename}', 'w') as ff:
             ff.create_dataset(kk, data=vv)
 """
     
-    # Run a separate Python process to load the object and re-save it in HDF5
+    # Run a separate Python process to load the object and re-save it in HDF5.
+    # Use the *current* interpreter (sys.executable): for a VIDE2 'voro' sample,
+    # sample_info.dat is a pickle of vide.backend.data_sample, which only the
+    # pixi VIDE2 env can import -- shutil.which("python") may resolve to a
+    # different (VIDE1) env on PATH and fail to unpickle it.
     subprocess.run([
-        shutil.which("python"), "-c", loop_string
+        sys.executable, "-c", loop_string
     ], check=True)
 
     # Load the object back safely from the HDF5 file
@@ -230,33 +245,76 @@ def read_adjfile_inner_loop(Npart,neighbor_ptr,neighbor_ids,raw_data):
             neighbor_counter[i] += 1
             neighbor_counter[j] += 1
             index += 1
-    
+
+
+@jit(nopython=True)
+def read_adjfile_voro_counts(Npart, raw_data):
+    # VIDE2 'voro' branch: adjacencies.dat stores, per particle, an inline count
+    # followed by its FULL neighbour list. voro++ encodes the six container walls
+    # as the negative ids -1..-6; those are not real cells and are dropped, so the
+    # per-particle count of *real* neighbours can be < the inline (degree) count.
+    new_sizes = np.zeros(Npart, dtype=np.int64)
+    index = 0
+    for i in range(Npart):
+        c = raw_data[index]
+        index += 1
+        for _ in range(c):
+            if raw_data[index] >= 0:
+                new_sizes[i] += 1
+            index += 1
+    return new_sizes
+
+
+@jit(nopython=True)
+def read_adjfile_voro_fill(Npart, neighbor_ptr, neighbor_ids, raw_data):
+    index = 0
+    for i in range(Npart):
+        c = raw_data[index]
+        index += 1
+        w = neighbor_ptr[i]
+        for _ in range(c):
+            v = raw_data[index]
+            index += 1
+            if v >= 0:
+                neighbor_ids[w] = v
+                w += 1
+
 
 def read_adjfile(adjfile):
     with open(adjfile, "rb") as adj:
         # Read the total number of particles
         Npart = struct.unpack('i', adj.read(4))[0]
-        
+
         # Read all adjacency sizes in one go
         adj_sizes = np.frombuffer(adj.read(4 * Npart), dtype=np.int32)
-        
+
         # Compute neighbor_ptr
         neighbor_ptr = np.zeros(Npart + 1, dtype=np.int32)
         np.cumsum(adj_sizes, out=neighbor_ptr[1:])
-        
+
         # Total number of neighbors
         total_neighbors = neighbor_ptr[-1]
-        
-        # Pre-allocate neighbor_ids
+
+        # Read every remaining integer in the file.
+        raw_data = np.frombuffer(adj.read(), dtype=np.int32)
+
+    # Two on-disk conventions share this binary layout:
+    #   master (VIDE1): each edge stored once; per-particle inline count = #edges
+    #       to higher-index neighbours; fill must symmetrise -> Npart + sum/2 ints.
+    #   voro   (VIDE2): each particle stores its FULL neighbour list (both
+    #       directions); inline count = degree -> Npart + sum(adj_sizes) ints, and
+    #       container walls appear as negative ids that must be dropped.
+    # adj_sizes is always the full degree, so distinguish by the payload length.
+    n_payload = raw_data.shape[0]
+    if n_payload >= Npart + total_neighbors:
+        new_sizes = read_adjfile_voro_counts(Npart, raw_data)
+        neighbor_ptr = np.zeros(Npart + 1, dtype=np.int32)
+        np.cumsum(new_sizes, out=neighbor_ptr[1:])
+        neighbor_ids = np.empty(neighbor_ptr[-1], dtype=np.int32)
+        read_adjfile_voro_fill(Npart, neighbor_ptr, neighbor_ids, raw_data)
+    else:
         neighbor_ids = np.empty(total_neighbors, dtype=np.int32)
-
-        #data = adj.read(total_neighbors * 4)
-        data = adj.read((total_neighbors + Npart) * 4)
-        
-        # Read all neighbors' IDs in bulk
-        raw_data = np.frombuffer(data, dtype=np.int32)
-
-        read_adjfile_inner_loop(Npart,neighbor_ptr,neighbor_ids,raw_data)
+        read_adjfile_inner_loop(Npart, neighbor_ptr, neighbor_ids, raw_data)
     return neighbor_ptr, neighbor_ids
         
 
@@ -324,10 +382,14 @@ def _read_voronoi_vide_voro(vide_out):
     """Reader for the VIDE 'voro' branch: tracers.dat (HDF5) holds everything."""
     tracers_file = os.path.join(os.path.expanduser(vide_out), 'tracers.dat')
     with h5py.File(tracers_file, 'r') as ff:
-        x_min = float(ff.attrs['range_x_min']);  x_max = float(ff.attrs['range_x_max'])
-        y_min = float(ff.attrs['range_y_min']);  y_max = float(ff.attrs['range_y_max'])
-        z_min = float(ff.attrs['range_z_min']);  z_max = float(ff.attrs['range_z_max'])
-        Np = int(ff.attrs['num_tracers'])
+        # attrs may be stored as scalars or as 1-element arrays depending on the
+        # VIDE2 build; extract the scalar robustly.
+        def _attr(key):
+            return np.asarray(ff.attrs[key]).reshape(-1)[0]
+        x_min = float(_attr('range_x_min'));  x_max = float(_attr('range_x_max'))
+        y_min = float(_attr('range_y_min'));  y_max = float(_attr('range_y_max'))
+        z_min = float(_attr('range_z_min'));  z_max = float(_attr('range_z_max'))
+        Np = int(_attr('num_tracers'))
 
         x = ff['x'][:].astype(np.float32) - np.float32(x_min)
         y = ff['y'][:].astype(np.float32) - np.float32(y_min)
@@ -693,7 +755,7 @@ def _vide_voids_cat_voro(vide_out_dir, dataPortion, untrimmed, want_core, want_i
 
     if want_info:
         with h5py.File(os.path.join(os.path.expanduser(vide_out_dir), 'tracers.dat'), 'r') as ff:
-            out['num_part_tot'] = int(ff.attrs['num_tracers'])
+            out['num_part_tot'] = int(np.asarray(ff.attrs['num_tracers']).reshape(-1)[0])
 
     return out
 
