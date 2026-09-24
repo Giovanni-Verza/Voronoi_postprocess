@@ -1698,13 +1698,15 @@ def select_overlaps(frac_threshold, id_selected, order_id_selected, ids_ovlp, Vo
             iv_ovlp = ids_ovlp[iv_ref,j]
             if (Vol_ovlp_frac[iv_ref,j] > frac_threshold):
                 ii = 0
-                while (ii < Ntot-1) & (id_selected[order_id_selected[id_out[ii]]] != iv_ovlp):
-                    #while (id_out[ii] != iv_ovlp) & (ii < Ntot):
+                while (ii < Ntot) and (id_selected[order_id_selected[id_out[ii]]] != iv_ovlp):
                     ii += 1
-                ii += int((ii == Ntot-1) & (id_selected[order_id_selected[id_out[ii]]] != iv_ovlp))
-
-                id_out[ii:-1] = id_out[ii+1:]
-                Ntot -= 1
+                # iv_ovlp may already have been removed by another (larger) kept
+                # void: then it is not in id_out[:Ntot] and nothing must be
+                # removed. The previous version decremented Ntot anyway, which
+                # silently dropped the current last (= smallest) kept void.
+                if ii < Ntot:
+                    id_out[ii:Ntot-1] = id_out[ii+1:Ntot]
+                    Ntot -= 1
         ind += 1
     #return id_selected[order_id_selected[id_out[:Ntot]]]
     return order_id_selected[id_out[:Ntot]]
