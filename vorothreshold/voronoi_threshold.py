@@ -177,20 +177,42 @@ def cluster_accretion(
     #Xcm = VoroXYZ[IDnext,:] * VoroVol[IDnext] / tracer_dens[IDnext] #np.zeros(3)
     #Norm_cm = VoroVol[IDnext] / tracer_dens[IDnext] #np.zeros(3)
 
+    # NtoAdd must exist before the first threshold: if the core cell is already
+    # denser than threshold[0] the while loop below does not run, and the
+    # "isolated group" check after it used to read an unassigned NtoAdd, which
+    # numba evaluates as 0 -> the void was returned unrecorded and lost at EVERY
+    # threshold of the call (not only threshold[0]).
+    NtoAdd = -1
+    # A neighbour batch is added cell by cell; when a threshold is crossed in the
+    # middle of a batch, the rest of the batch stays pending and is added first
+    # when growth resumes at the next threshold. Previously those cells were left
+    # in ID_to_explore without being added (and were then excluded from every
+    # later batch), so the void at a given threshold depended on which lower
+    # thresholds were requested in the same call.
+    batch_open = False
+    inner_progr = 0
+
     for ith in range(Nthresholds):
         Condition = (Dens <= threshold[ith]) & (Ncells < numPart) #(Ncells < numPart-1)
         #print(ith,Ncells,Condition,numPart-1)
         while Condition:
-            ## Add neighbor particles and update ID_to_explore:
-            VtoCluster = is_not_in_arr(neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]],ID_to_explore[:Nneighbors])
-            VtoCluster &= is_not_in_arr(neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]],IDvoro_in_void[:Ncells]) #+1])
-            NtoAdd = np.sum(VtoCluster)
-            ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]][VtoCluster]
+            if not batch_open:
+                ## Add neighbor particles and update ID_to_explore:
+                VtoCluster = is_not_in_arr(neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]],ID_to_explore[:Nneighbors])
+                VtoCluster &= is_not_in_arr(neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]],IDvoro_in_void[:Ncells]) #+1])
+                NtoAdd = np.sum(VtoCluster)
+                if NtoAdd == 0: #For isolated groups
+                    # Nothing to add: stop before the inner loop, which would
+                    # otherwise add the stale entry ID_to_explore[Nneighbors]
+                    # (a duplicate of an already included cell) once.
+                    break
+                ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = neighbor_ids[neighbor_ptr[IDanchor]:neighbor_ptr[IDanchor+1]][VtoCluster]
+                ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = ID_to_explore[Nneighbors:Nneighbors+NtoAdd][
+                    (np.argsort(VoroVol[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]] * tracer_dens[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]])[::-1])]
+                inner_progr = 0
+                batch_open = True
 
             Cond_innert = True
-            ID_to_explore[Nneighbors:Nneighbors+NtoAdd] = ID_to_explore[Nneighbors:Nneighbors+NtoAdd][
-                (np.argsort(VoroVol[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]] * tracer_dens[ID_to_explore[Nneighbors:Nneighbors+NtoAdd]])[::-1])]
-            inner_progr = 0
             while Cond_innert:
                 IDnext = ID_to_explore[Nneighbors+inner_progr]
 
@@ -206,8 +228,11 @@ def cluster_accretion(
                 inner_progr += 1
                 Cond_innert = (Dens <= threshold[ith]) & (Ncells < numPart) & (inner_progr < NtoAdd)
 
-            if NtoAdd == 0: #For isolated groups
+            if inner_progr < NtoAdd:
+                # threshold crossed (or max_num_part reached) mid-batch: keep the
+                # batch open for the next threshold, anchor unchanged.
                 break
+            batch_open = False
             Nneighbors += NtoAdd
 
             Ichange = np.argwhere(ID_to_explore[:Nneighbors] == IDanchor)[0,0]
@@ -222,6 +247,10 @@ def cluster_accretion(
 
 
         if NtoAdd == 0: #For isolated groups
+            # NOTE: NtoAdd == 0 means the CURRENT anchor has no unvisited
+            # neighbour; other unexpanded cells may still be in
+            # ID_to_explore, so this is not strictly an exhausted frontier.
+            # Stopping here is kept as the current behaviour (open question).
             # PERCOLATION FIX: the void has accreted its entire connected
             # underdense component (the frontier is empty), so it is at its
             # terminal size and cannot grow at any higher threshold.  The old
